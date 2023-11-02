@@ -7,7 +7,6 @@ from src.evaluation.benchmark_reader import BenchmarkReader
 from src.models.entity_database import EntityDatabase
 from src.type_computation.feature_scores import FeatureScores
 
-
 SEED = 42
 
 
@@ -18,6 +17,7 @@ class GradientBoostRegressor:
         self.entity_db.load_instance_of_mapping()
         self.entity_db.load_subclass_of_mapping()
         self.entity_db.load_entity_to_name()
+        self.entity_db.load_entity_to_description()
 
         self.feature_scores = FeatureScores(self.entity_db)
         self.feature_scores.precompute_normalized_popularities()
@@ -47,12 +47,19 @@ class GradientBoostRegressor:
         y = []
         for e, gt_types in benchmark.items():
             # Add a row for each entity - candidate type pair.
-            candidate_types = self.entity_db.get_entity_types(e)
-            for t in candidate_types:
+            candidate_types = self.entity_db.get_entity_types_with_path_length(e)
+            desc = self.entity_db.get_entity_description(e)
+            entity_name = self.entity_db.get_entity_name(e)
+            for t, path_length in candidate_types.items():
                 norm_pop = self.feature_scores.get_normalized_popularity(t)
                 norm_var = self.feature_scores.get_normalized_variance(t)
                 norm_idf = self.feature_scores.get_normalized_idf(t)
-                features = [norm_pop, norm_var, norm_idf]
+                type_name = self.entity_db.get_entity_name(t)
+                type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
+                len_type_name = len(type_name) if type_name else 0
+                len_desc = len(desc) if desc else 0
+                type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
+                features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
                 X.append(features)
                 y.append(int(t in gt_types))
         return np.array(X), y
@@ -72,38 +79,61 @@ class GradientBoostRegressor:
             X_test = []
             y_test = []
             # Add a row for each entity - candidate type pair.
-            candidate_types = list(self.entity_db.get_entity_types(e))
-            for t in candidate_types:
+            candidate_types = list(self.entity_db.get_entity_types_with_path_length(e).items())
+            desc = self.entity_db.get_entity_description(e)
+            entity_name = self.entity_db.get_entity_name(e)
+            for t, path_length in candidate_types:
                 norm_pop = self.feature_scores.get_normalized_popularity(t)
                 norm_var = self.feature_scores.get_normalized_variance(t)
                 norm_idf = self.feature_scores.get_normalized_idf(t)
-                features = [norm_pop, norm_var, norm_idf]
+                type_name = self.entity_db.get_entity_name(t)
+                type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
+                len_type_name = len(type_name) if type_name else 0
+                len_desc = len(desc) if desc else 0
+                type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
+                features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
                 X_test.append(features)
                 y_test.append(int(t in gt_types))
             X_test = np.array(X_test)
             y_pred = self.model.predict(X_test)
-            predicted_type_id = candidate_types[np.argmax(y_pred)]
+            predicted_type_id = candidate_types[np.argmax(y_pred)][0]
             if predicted_type_id in gt_types:
                 res += 1
             print(f"Entity: {self.entity_db.get_entity_name(e)}, prediction: {self.entity_db.get_entity_name(predicted_type_id)} vs. {', '.join([self.entity_db.get_entity_name(gt) for gt in gt_types])}")
         accuracy = res / len(benchmark)
         print(f"Model yields correct prediction for {accuracy * 100:.1f}% of entities in the test set.")
 
-    def predict(self, entity_id):
-        candidate_types = list(self.entity_db.get_entity_types(entity_id))
+    def predict(self, entity_id, provided_candidate_types=None):
+        candidate_types = self.entity_db.get_entity_types_with_path_length(entity_id)
+
+        if provided_candidate_types is not None:
+            # Get the path lengths for the provided candidate types.
+            new_candidate_types = {}
+            for t in provided_candidate_types:
+                new_candidate_types[t] = candidate_types[t] if t in candidate_types else 0
+            candidate_types = new_candidate_types
+
+        candidate_types = list(candidate_types.items())
+        desc = self.entity_db.get_entity_description(entity_id)
         X = []
-        for t in candidate_types:
+        entity_name = self.entity_db.get_entity_name(entity_id)
+        for t, path_length in candidate_types:
             norm_pop = self.feature_scores.get_normalized_popularity(t)
             norm_var = self.feature_scores.get_normalized_variance(t)
             norm_idf = self.feature_scores.get_normalized_idf(t)
-            features = [norm_pop, norm_var, norm_idf]
+            type_name = self.entity_db.get_entity_name(t)
+            type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
+            len_type_name = len(type_name) if type_name else 0
+            len_desc = len(desc) if desc else 0
+            type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
+            features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
             X.append(features)
         if not X:
             print(f"Entity does not seem to have any type.")
             return None
         prediction = self.model.predict(X)
         sorted_indices = np.argsort(prediction)[::-1]
-        return sorted([(prediction[i], candidate_types[i]) for i in sorted_indices], key=lambda x: x[0], reverse=True)
+        return sorted([(prediction[i], candidate_types[i][0]) for i in sorted_indices], key=lambda x: x[0], reverse=True)
 
     def plot_feature_importance(self, test_file):
         """
