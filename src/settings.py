@@ -23,6 +23,9 @@ ENTITY_TO_NAME_FILE = DATA_DIRECTORY + "wikidata_mappings/qid_to_label.tsv"
 ENTITY_TO_POPULARITY_FILE = DATA_DIRECTORY + "wikidata_mappings/qid_to_sitelinks.tsv"
 ENTITY_TO_DESCRIPTION_FILE = DATA_DIRECTORY + "wikidata_mappings/qid_to_description.tsv"
 
+ENTITY_TO_DESCRIPTION_DB = DATA_DIRECTORY + "wikidata_mappings/qid_to_description.db"
+
+
 TYPE_FREQUENCY_FILE = DATA_DIRECTORY + "type_frequencies.tsv"
 TYPE_POPULARITY_FILE = DATA_DIRECTORY + "type_popularities.tsv"
 AVG_TYPE_POPULARITY_FILE = DATA_DIRECTORY + "average_type_popularities.tsv"

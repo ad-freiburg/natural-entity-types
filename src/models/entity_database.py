@@ -15,6 +15,7 @@ class EntityDatabase:
         self.reverse_subclass_of_mapping = {}
         self.entity_to_name = {}
         self.name_to_entity = {}
+        self.entity_to_description = {}
         self.entity_descriptions = []
         self.type_frequency = {}
         self.type_variance = {}
@@ -49,6 +50,10 @@ class EntityDatabase:
     def load_name_to_entity(self):
         if not self.name_to_entity:
             self.name_to_entity = EntityDatabaseReader.read_name_to_entity_mapping()
+
+    def load_entity_to_description(self):
+        if not self.entity_to_description:
+            self.entity_to_description = EntityDatabaseReader.read_entity_description_db()
 
     def load_entity_descriptions(self):
         if not self.entity_descriptions:
@@ -218,6 +223,11 @@ class EntityDatabase:
         if entity_id in self.entity_to_popularity:
             return self.entity_to_popularity[entity_id]
         return 0
+
+    def get_entity_description(self, entity_id: str) -> Optional[str]:
+        if entity_id in self.entity_to_description:
+            return self.entity_to_description[entity_id]
+        return None
 
     def get_type_frequency(self, entity_id: str) -> int:
         if entity_id in self.type_frequency:

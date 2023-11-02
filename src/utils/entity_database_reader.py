@@ -1,7 +1,9 @@
+import dbm
 import logging
+from typing import Optional
 
 from src import settings
-
+from src.models.database import Database
 
 logger = logging.getLogger("main." + __name__.split(".")[-1])
 
@@ -110,6 +112,18 @@ class EntityDatabaseReader:
         return descriptions
 
     @staticmethod
+    def read_description_mapping():
+        filename = settings.ENTITY_TO_DESCRIPTION_FILE
+        logger.info("Loading description mapping from %s ..." % filename)
+        descriptions = {}
+        with open(filename, "r", encoding="utf8") as f:
+            for line in f:
+                key, value = line.strip('\n').split('\t')
+                descriptions[key] = value
+        logger.info("-> %d description mappings loaded." % len(descriptions))
+        return descriptions
+
+    @staticmethod
     def read_all_entities():
         filename = settings.ENTITY_TO_NAME_FILE
         logger.info(f"Loading entities from {filename} ...")
@@ -205,3 +219,17 @@ class EntityDatabaseReader:
                 mapping[type_id].add(entity_id)
         logger.info(f"-> {len(mapping)} type to entities mappings loaded.")
         return mapping
+
+    @staticmethod
+    def read_from_dbm(db_file: str, value_type: Optional[type] = str, separator: Optional[str] = ",") -> Database:
+        dbm_db = dbm.open(db_file, "r")
+        db = Database(dbm_db, value_type, separator)
+        return db
+
+    @staticmethod
+    def read_entity_description_db() -> Database:
+        filename = settings.ENTITY_TO_DESCRIPTION_DB
+        logger.info(f"Loading entity ID to description database from {filename} ...")
+        description_db = EntityDatabaseReader.read_from_dbm(filename)
+        logger.info(f"-> {len(description_db)} entity ID to description mappings loaded.")
+        return description_db
