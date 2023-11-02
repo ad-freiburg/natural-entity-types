@@ -6,3 +6,4 @@ class ModelNames(Enum):
     GRADIENT_BOOST_CLASSIFIER = "gbc"
     GRADIENT_BOOST_REGRESSOR = "gbr"
     MANUAL_SCORING = "manual_scoring"
+    NEURAL_NETWORK = "nn"
