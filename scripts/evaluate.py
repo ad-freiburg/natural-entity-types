@@ -75,7 +75,7 @@ def main(args):
     if ModelNames.NEURAL_NETWORK.value in args.models:
         logger.info("Loading Neural Network ...")
         nn = NeuralTypePredictor(args.input_files, entity_db)
-        nn.initialize_model(8, 128, 0)
+        nn.initialize_model(8 + 300*2, 512, 0)
         X, y = nn.create_dataset(args.training_file)
         nn.train(X, y)
         evaluate(nn.predict, benchmark, entity_db, args.output_file)

@@ -56,15 +56,6 @@ def training_batches(x_train: torch.Tensor,
         yield x, y
 
 
-def get_doc_embedding(doc):
-    embedding_size = len(doc[0].vector)
-    embedding = torch.zeros(1, embedding_size)
-    for tok in doc:
-        embedding += tok.vector
-    embedding = embedding / len(doc)
-    return embedding
-
-
 class NeuralTypePredictor:
     def __init__(self, input_files, entity_db=None):
         # Load entity database mappings if they have not been loaded already
@@ -84,6 +75,7 @@ class NeuralTypePredictor:
 
         logger.info("Loading spacy model...")
         self.nlp = spacy.load("en_core_web_lg")
+        self.embedding_size = 300
 
         self.model = None
 
@@ -93,29 +85,44 @@ class NeuralTypePredictor:
     def initialize_model(self, n_features, hidden_units, dropout):
         self.model = NeuralNet(n_features, hidden_units, 1, dropout)
 
-    def create_dataset(self, filename):
-        training_benchmark = BenchmarkReader.read_benchmark(filename)
+    def get_text_embedding(self, string):
+        if not string:
+            return torch.zeros(1, self.embedding_size)
 
-        X = []
+        doc = self.nlp(string)
+        embedding = torch.zeros(1, self.embedding_size)
+        for tok in doc:
+            embedding += tok.vector
+        embedding = embedding / len(doc)
+        return embedding
+
+    def create_dataset(self, filename):
+        logger.info("Creating training data...")
+        training_benchmark = BenchmarkReader.read_benchmark(filename)
+        X = torch.Tensor()
         y = []
         for e, gt_types in training_benchmark.items():
             # Add a row for each entity - candidate type pair.
             candidate_types = self.entity_db.get_entity_types_with_path_length(e)
             desc = self.entity_db.get_entity_description(e)
+            desc_embedding = self.get_text_embedding(desc)
             entity_name = self.entity_db.get_entity_name(e)
             for t, path_length in candidate_types.items():
                 norm_pop = self.feature_scores.get_normalized_popularity(t)
                 norm_var = self.feature_scores.get_normalized_variance(t)
                 norm_idf = self.feature_scores.get_normalized_idf(t)
                 type_name = self.entity_db.get_entity_name(t)
+                type_name_embedding = self.get_text_embedding(type_name)
                 type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
                 len_type_name = len(type_name) if type_name else 0
                 len_desc = len(desc) if desc else 0
                 type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
                 features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
-                X.append(features)
+                sample_vector = torch.cat((torch.Tensor(features).unsqueeze(0), desc_embedding, type_name_embedding), dim=1)
+                X = torch.cat((X, sample_vector), dim=0)
                 y.append(int(t in gt_types))
-        return torch.Tensor(X), torch.Tensor(y)
+        logger.info(f"X shape: {X.shape}")
+        return X, torch.Tensor(y)
 
     def train(self,
               x_train: torch.Tensor,
@@ -126,7 +133,6 @@ class NeuralTypePredictor:
         """
         Train the neural network.
         """
-        print(x_train.shape, y_train.shape)
         self.model.train()
         loss_function = torch.nn.BCELoss()
         optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
@@ -139,29 +145,31 @@ class NeuralTypePredictor:
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
-            print(f"epoch {i + 1}, loss: {float(loss)}")
+            logger.info(f"epoch {i + 1}, loss: {float(loss)}")
 
     def predict(self, entity_id):
         candidate_types = self.entity_db.get_entity_types_with_path_length(entity_id)
         candidate_types = list(candidate_types.items())
         desc = self.entity_db.get_entity_description(entity_id)
-        X = []
+        desc_embedding = self.get_text_embedding(desc)
+        X = torch.Tensor()
         entity_name = self.entity_db.get_entity_name(entity_id)
         for t, path_length in candidate_types:
             norm_pop = self.feature_scores.get_normalized_popularity(t)
             norm_var = self.feature_scores.get_normalized_variance(t)
             norm_idf = self.feature_scores.get_normalized_idf(t)
             type_name = self.entity_db.get_entity_name(t)
+            type_name_embedding = self.get_text_embedding(type_name)
             type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
             len_type_name = len(type_name) if type_name else 0
             len_desc = len(desc) if desc else 0
             type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
             features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
-            X.append(features)
-        if not X:
-            print(f"Entity does not seem to have any type.")
+            sample_vector = torch.cat((torch.Tensor(features).unsqueeze(0), desc_embedding, type_name_embedding), dim=1)
+            X = torch.cat((X, sample_vector), dim=0)
+        if X.shape[0] == 0:
+            logger.info(f"Entity does not seem to have any type.")
             return None
-        X = torch.Tensor(X)
         prediction = self.model(X)
         sorted_indices = torch.argsort(prediction.view(-1))
         sorted_indices = sorted_indices.flip([0])
