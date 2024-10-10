@@ -9,7 +9,7 @@ from src.models.entity_database import EntityDatabase
 class GPT:
     def __init__(self, entity_db: EntityDatabase, model=None):
         openai.api_key = os.getenv("OPENAI_API_KEY")
-        self.model = model if model else "gpt-3.5-turbo"
+        self.model = model if model else "gpt-4-1106-preview"
         self.temperature = 0.7
 
         # Load entity database mappings if they have not been loaded already
@@ -36,7 +36,7 @@ class GPT:
 
     def predict(self, entity_id: str):
         instructions = "The user provides a Wikidata entity with name and QID, followed by a list of Wikidata types for " \
-                       "the entity. You reply with the top 10 most natural types for the given entity from the " \
+                       "the entity. You reply with the top 5 most natural types for the given entity from the " \
                        "provided type list, ordered by what the most natural type is. " \
                        "Reply with only the type QIDs separated by comma and nothing else, in particular, do not write the type names."
         entity_name = self.entity_db.get_entity_name(entity_id)

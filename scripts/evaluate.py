@@ -19,12 +19,16 @@ def evaluate(scoring_function, benchmark, entity_db, output_file=None):
     if output_file:
         output_file = open(output_file, "w", encoding="utf8")
     aps = []
+    p_at_1s = []
     p_at_rs = []
     for entity_id in benchmark:
         result_types = scoring_function(entity_id)
-        if type(result_types[0]) is tuple:
+        if result_types is None or result_types[0] is None:
+            result_types = ([None])
+        elif type(result_types[0]) is tuple:
             result_types = [r[1] for r in result_types]  # Get only the type ids, not the scores
         ap = Metrics.average_precision(result_types, benchmark[entity_id])
+        p_at_1 = Metrics.precision_at_k(result_types, benchmark[entity_id], 1)
         p_at_r = Metrics.precision_at_k(result_types, benchmark[entity_id], len(benchmark[entity_id]))
         entity_name = entity_db.get_entity_name(entity_id)
         gt_entities = ", ".join([f"{entity_db.get_entity_name(t)} ({t})" for t in benchmark[entity_id]])
@@ -33,18 +37,22 @@ def evaluate(scoring_function, benchmark, entity_db, output_file=None):
               f"\tGround truth: {gt_entities}\n"
               f"\tprediction: {predicted_entities}")
         aps.append(ap)
+        p_at_1s.append(p_at_1)
         p_at_rs.append(p_at_r)
         if output_file:
             output_file.write(f"Average precision for \"{entity_name}\" ({entity_id}): {ap:.2f}.\n"
                               f"\tGround truth: {gt_entities}\n"
                               f"\tprediction: {predicted_entities}\n")
     mean_ap = sum(aps) / len(aps)
+    mean_p_at_1 = sum(p_at_1s) / len(p_at_1s)
     mean_p_at_r = sum(p_at_rs) / len(p_at_rs)
     print(f"Mean average precision: {mean_ap:.2f}")
+    print(f"Mean precision at 1: {mean_p_at_1:.2f}")
     print(f"Mean precision at R: {mean_p_at_r:.2f}")
 
     if output_file:
         output_file.write(f"Mean average precision: {mean_ap:.2f}\n")
+        output_file.write(f"Mean precision at 1: {mean_p_at_1:.2f}\n")
         output_file.write(f"Mean precision at R: {mean_p_at_r:.2f}\n")
         output_file.close()
 

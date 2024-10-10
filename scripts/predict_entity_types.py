@@ -28,26 +28,26 @@ def predict(input_file, output_file, scoring_function, entity_db=None):
 
                 output_file.write("\t".join(lst) + "\n")
                 if (i + 1) % 10_000 == 0:
-                    print(f"\rWrote {i + 1} entity types")
+                    print(f"\rWrote {i + 1} entity types", end="")
 
 
 def main(args):
     entity_db = EntityDatabase()
     entity_db.load_entity_to_name()
 
-    if ModelNames.MANUAL_SCORING.value in args.models:
+    if ModelNames.MANUAL_SCORING.value in args.model:
         logger.info("Loading manual type scorer...")
         type_computer = ProminentTypeComputer(args.predicate_files, None, entity_db=entity_db)
         logger.info("Predicting with manual type scorer...")
         predict(args.input_file, args.output_file, type_computer.compute_entity_score)
-    if ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models:
+    elif ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.model:
         logger.info("Loading gradient boost regression model ...")
         gb = GradientBoostRegressor(args.predicate_files, entity_db=entity_db)
         X, y = gb.create_dataset(args.training_file)
         gb.train(X, y)
         logger.info("Predicting with gradient boost regression model ...")
         predict(args.input_file, args.output_file, gb.predict)
-    if ModelNames.GPT.value in args.models:
+    elif ModelNames.GPT.value in args.model:
         gpt = GPT(entity_db)
         logger.info("Predicting with GPT ...")
         predict(args.input_file, args.output_file, gpt.predict)
@@ -55,8 +55,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__)
-    parser.add_argument("-m", "--models", type=str, nargs="+", required=True, choices=[f.value for f in ModelNames],
-                        help="Names of the models that will be evaluated.")
+    parser.add_argument("-m", "--model", type=str, required=True, choices=[f.value for f in ModelNames],
+                        help="Names of the model that will be evaluated.")
     parser.add_argument("-i", "--input_file", type=str, required=True,
                         help="Input file with entities for which to predict types.")
     parser.add_argument("-o", "--output_file", type=str, required=True,
@@ -69,11 +69,11 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logger = log.setup_logger()
 
-    if not args.predicate_files and (ModelNames.MANUAL_SCORING.value in args.models or
-                                     ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models):
+    if not args.predicate_files and (ModelNames.MANUAL_SCORING.value in args.model or
+                                     ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.model):
         logger.info("The model you selected requires that you provide predicate variance score files via the -p option.")
         sys.exit(1)
-    if not args.training_file and ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models:
+    if not args.training_file and ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.model:
         logger.info("The model you selected requires that you provide a training file via the -train option.")
         sys.exit(1)
 
