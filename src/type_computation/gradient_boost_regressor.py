@@ -1,3 +1,4 @@
+import logging
 import numpy as np
 import matplotlib.pyplot as plt
 from sklearn.ensemble import GradientBoostingRegressor
@@ -8,6 +9,8 @@ from src.models.entity_database import EntityDatabase
 from src.type_computation.feature_scores import FeatureScores
 
 SEED = 42
+
+logger = logging.getLogger("main." + __name__.split(".")[-1])
 
 
 class GradientBoostRegressor:
@@ -196,3 +199,16 @@ class GradientBoostRegressor:
         plt.ylabel("Deviance")
         fig.tight_layout()
         plt.savefig("learning_curve.pdf")
+
+    def save_model(self, model_path):
+        from pickle import dump
+        with open(model_path, "wb") as file:
+            dump(self.model, file, protocol=5)
+        logger.info(f"Saved model to {model_path}")
+
+
+    def load_model(self, model_path):
+        logger.info(f"Loading model from {model_path} ...")
+        from pickle import load
+        with open(model_path, "rb") as file:
+            self.model = load(file)

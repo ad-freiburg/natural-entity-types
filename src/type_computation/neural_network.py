@@ -70,17 +70,11 @@ class NeuralTypePredictor:
         self.feature_scores.precompute_normalized_idfs(medium=7)
         self.feature_scores.precompute_normalized_variances(input_files, medium=0.8)
 
-        self.model_path = "trained_type_prediction_model.pt"
-        self.checkpoint_path = "trained_type_prediction_model.best.pt"
-
         logger.info("Loading spacy model...")
         self.nlp = spacy.load("en_core_web_lg")
         self.embedding_size = 300
 
         self.model = None
-
-    def set_model_path(self, model_path: str):
-        self.model_path = model_path
 
     def initialize_model(self, n_features, hidden_units, dropout):
         self.model = NeuralNet(n_features, hidden_units, 1, dropout)
@@ -175,18 +169,17 @@ class NeuralTypePredictor:
         sorted_indices = sorted_indices.flip([0])
         return sorted([(prediction[i], candidate_types[i][0]) for i in sorted_indices], key=lambda x: x[0], reverse=True)
 
-    def save_model(self):
+    def save_model(self, model_path):
         """
         Save the model and its settings in a dictionary.
         """
-        torch.save({'model': self.model}, self.model_path)
-        logger.info(f"Dictionary with trained model saved to {self.model_path}")
+        torch.save({'model': self.model}, model_path)
+        logger.info(f"Dictionary with trained model saved to {model_path}")
 
-    @staticmethod
-    def load_model(model_path):
+    def load_model(self, model_path):
         """
         Load the model and its settings from a dictionary.
         """
+        logger.info(f"Loading model from {model_path} ...")
         model_dict = torch.load(model_path)
-        model = model_dict['model']
-        return model
+        self.model = model_dict['model']

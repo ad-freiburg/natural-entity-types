@@ -64,35 +64,47 @@ def main(args):
     benchmark = BenchmarkReader.read_benchmark(args.benchmark_file)
 
     if ModelNames.MANUAL_SCORING.value in args.models:
-        logger.info("Loading manual type scorer...")
+        logger.info("Initializing manual type scorer...")
         type_computer = ProminentTypeComputer(args.input_files, None, entity_db=entity_db)
         logger.info("Evaluating manual type scorer...")
         evaluate(type_computer.compute_entity_score, benchmark, entity_db, args.output_file)
     if ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models:
-        logger.info("Loading gradient boost regression model ...")
+        logger.info("Initializing gradient boost regression model ...")
         gb = GradientBoostRegressor(args.input_files, entity_db=entity_db)
-        X, y = gb.create_dataset(args.training_file)
-        gb.train(X, y)
+        if args.load_model:
+            gb.load_model(args.load_model)
+        else:
+            X, y = gb.create_dataset(args.training_file)
+            gb.train(X, y)
         logger.info("Evaluating gradient boost regression model ...")
         evaluate(gb.predict, benchmark, entity_db, args.output_file)
+        if args.save_model:
+            gb.save_model(args.save_model)
     if ModelNames.GPT.value in args.models:
-        logger.info("Loading GPT ...")
+        logger.info("Initializing GPT ...")
         gpt = GPT(entity_db)
         logger.info("Evaluating GPT ...")
         evaluate(gpt.predict, benchmark, entity_db, args.output_file)
     if ModelNames.NEURAL_NETWORK.value in args.models:
-        logger.info("Loading Neural Network ...")
+        logger.info("Initializing Neural Network ...")
         nn = NeuralTypePredictor(args.input_files, entity_db)
-        nn.initialize_model(8 + 300*2, 512, 0)
-        X, y = nn.create_dataset(args.training_file)
-        nn.train(X, y)
+        if args.load_model:
+            nn.load_model(args.load_model)
+        else:
+            nn.initialize_model(8 + 300*2, 512, 0)
+            X, y = nn.create_dataset(args.training_file)
+            nn.train(X, y)
         evaluate(nn.predict, benchmark, entity_db, args.output_file)
+        if args.save_model:
+            nn.save_model(args.save_model)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__)
     parser.add_argument("-m", "--models", type=str, nargs="+", required=True, choices=[f.value for f in ModelNames],
                         help="Names of the models that will be evaluated.")
+    parser.add_argument("--save_model", type=str, help="File to which to save the model.")
+    parser.add_argument("--load_model", type=str, help="File from which to load the model.")
     parser.add_argument("-b", "--benchmark_file", type=str, required=True,
                         help="File that contains the benchmark.")
     parser.add_argument("-i", "--input_files", type=str, nargs='+',
@@ -109,8 +121,10 @@ if __name__ == "__main__":
                                  ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models):
         logger.info("The model you selected requires that you provide predicate variance score files via the -i option.")
         sys.exit(1)
-    if not args.training_file and ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models:
-        logger.info("The model you selected requires that you provide a training file via the -train option.")
+    if (not args.training_file and not args.load_model and
+            (ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models or ModelNames.NEURAL_NETWORK in args.models)):
+        logger.info("The model you selected requires that you provide a training file via the -train option or load a "
+                    "pre-trained model using the --load_model option.")
         sys.exit(1)
 
     main(args)
