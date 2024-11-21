@@ -34,6 +34,20 @@ class GradientBoostRegressor:
                                                max_depth=3,
                                                random_state=SEED)
 
+    def create_feature_list(self, type_id, path_length, desc, entity_name):
+        """
+        Create a list of features for a given entity type.
+        """
+        norm_pop = self.feature_scores.get_average_type_popularity(type_id)
+        norm_var = self.feature_scores.get_normalized_variance(type_id)
+        norm_idf = self.feature_scores.get_normalized_idf(type_id)
+        type_name = self.entity_db.get_entity_name(type_id)
+        type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
+        len_type_name = len(type_name) if type_name else 0
+        len_desc = len(desc) if desc else 0
+        type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
+        return [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
+
     def create_dataset(self, filename):
         """
         Create a dataset from the benchmark with one row per entity - candidate
@@ -54,15 +68,7 @@ class GradientBoostRegressor:
             desc = self.entity_db.get_entity_description(e)
             entity_name = self.entity_db.get_entity_name(e)
             for t, path_length in candidate_types.items():
-                norm_pop = self.feature_scores.get_average_type_popularity(t)
-                norm_var = self.feature_scores.get_normalized_variance(t)
-                norm_idf = self.feature_scores.get_normalized_idf(t)
-                type_name = self.entity_db.get_entity_name(t)
-                type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
-                len_type_name = len(type_name) if type_name else 0
-                len_desc = len(desc) if desc else 0
-                type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
-                features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
+                features = self.create_feature_list(t, path_length, desc, entity_name)
                 X.append(features)
                 y.append(int(t in gt_types))
         return np.array(X), y
@@ -86,15 +92,7 @@ class GradientBoostRegressor:
             desc = self.entity_db.get_entity_description(e)
             entity_name = self.entity_db.get_entity_name(e)
             for t, path_length in candidate_types:
-                norm_pop = self.feature_scores.get_average_type_popularity(t)
-                norm_var = self.feature_scores.get_normalized_variance(t)
-                norm_idf = self.feature_scores.get_normalized_idf(t)
-                type_name = self.entity_db.get_entity_name(t)
-                type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
-                len_type_name = len(type_name) if type_name else 0
-                len_desc = len(desc) if desc else 0
-                type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
-                features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
+                features = self.create_feature_list(t, path_length, desc, entity_name)
                 X_test.append(features)
                 y_test.append(int(t in gt_types))
             X_test = np.array(X_test)
@@ -120,15 +118,7 @@ class GradientBoostRegressor:
         X = []
         entity_name = self.entity_db.get_entity_name(entity_id)
         for t, path_length in candidate_types:
-            norm_pop = self.feature_scores.get_average_type_popularity(t)
-            norm_var = self.feature_scores.get_normalized_variance(t)
-            norm_idf = self.feature_scores.get_normalized_idf(t)
-            type_name = self.entity_db.get_entity_name(t)
-            type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
-            len_type_name = len(type_name) if type_name else 0
-            len_desc = len(desc) if desc else 0
-            type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
-            features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
+            features = self.create_feature_list(t, path_length, desc, entity_name)
             X.append(features)
         if not X:
             print(f"Entity does not seem to have any type.")
