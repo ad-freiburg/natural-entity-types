@@ -10,20 +10,32 @@ candidate type and select the most natural one.
 
 ## Setup
 
-TODO
+Generate the necessary data files by running the following command:
+
+    make generate_all
+
+This will download Wikidata mappings using the [QLever](https://qlever.cs.uni-freiburg.de/wikidata) API, generate
+databases from them for quick access, and compute type properties from these Wikidata mappings which are used as
+features by the models. This can take a couple of hours.
+
 
 ## Evaluation
 
-To evaluate a model, adjust and run the following command:
+To train and/or evaluate a model, adjust the following command according to your needs:
 
-    python3 scripts/evaluate.py -m <gbr|nn|gpt> --save_model <model_file> -b <benchmark_file> -i data/predicate_variances.Q* -train <training_file>
+    python3 scripts/evaluate.py -m <gbr|nn|gpt|oracle> --save_model <model_file> -b <benchmark_file> -i data/predicate_variances/* -train <training_file>
 
 - The `-m` option specifies the model to be evaluated. You can choose from `gbr` (Gradient Boost Regressor),
-`nn` (Feed Forward Neural Network), and `gpt` (GPT-4).
-- `<model_file>` is the path where the trained model should be saved (optional).
+`nn` (Feed Forward Neural Network), `gpt` (GPT-4), and `oracle`. `oracle` is a model that always predicts the ground
+  truth type of the benchmark entity if it is among the candidate types. The oracle evaluation results represent the
+  upper bound of what a model that relies on the candidate types can achieve.
+- `<model_file>` is the path where the trained model will be saved (optional).
 - `<benchmark_file>` is the path to the benchmark file on which the model will be evaluated, e.g.
-`benchmarks/benchmarks/mini_benchmark.test.tsv`.
-- `<training_file>` is the path to the file that contains the training data.
+`benchmarks/mini_benchmark.test.tsv`. The expected format of the benchmark is a tsv file with one line per entity, with
+  the entity QID in the first column and the space-separated QIDs of the ground truth types in the second column.
+- `<training_file>` is the path to the file that contains the training data. The expected format is the same as for the
+  benchmark file.
 
 Once you have evaluated a model for the first time (assuming you used the `--save_model` option), you can replace
-the `--save_model` option with the `--load_model` option to load the previously saved model from the specified file.
+the `--save_model` option with the `--load_model` option to load the previously saved model from the specified file
+without having to train it again.
