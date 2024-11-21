@@ -7,3 +7,4 @@ class ModelNames(Enum):
     GRADIENT_BOOST_REGRESSOR = "gbr"
     MANUAL_SCORING = "manual_scoring"
     NEURAL_NETWORK = "nn"
+    ORACLE = "oracle"  # Best possible prediction given the candidate types

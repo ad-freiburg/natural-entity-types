@@ -1,16 +1,12 @@
 import sys
 import argparse
 
-
 sys.path.append(".")
 
 from src.utils import log
 from src.evaluation.benchmark_reader import BenchmarkReader
 from src.evaluation.metrics import Metrics
 from src.models.entity_database import EntityDatabase
-from src.type_computation.prominent_type_computer import ProminentTypeComputer
-from src.type_computation.gradient_boost_regressor import GradientBoostRegressor
-from src.type_computation.gpt import GPT
 from src.type_computation.model_names import ModelNames
 from src.type_computation.neural_network import NeuralTypePredictor
 
@@ -23,7 +19,7 @@ def evaluate(scoring_function, benchmark, entity_db, output_file=None):
     p_at_rs = []
     for entity_id in benchmark:
         result_types = scoring_function(entity_id)
-        if result_types is None or result_types[0] is None:
+        if result_types is None or len(result_types) == 0 or result_types[0] is None:
             result_types = ([None])
         elif type(result_types[0]) is tuple:
             result_types = [r[1] for r in result_types]  # Get only the type ids, not the scores
@@ -32,7 +28,7 @@ def evaluate(scoring_function, benchmark, entity_db, output_file=None):
         p_at_r = Metrics.precision_at_k(result_types, benchmark[entity_id], len(benchmark[entity_id]))
         entity_name = entity_db.get_entity_name(entity_id)
         gt_entities = ", ".join([f"{entity_db.get_entity_name(t)} ({t})" for t in benchmark[entity_id]])
-        predicted_entities = ", ".join([f"{entity_db.get_entity_name(t)} ({t})" for t in result_types[:10]]) + "..."
+        predicted_entities = ", ".join([f"{entity_db.get_entity_name(t)} ({t})" for t in result_types[:6]]) + "..."
         print(f"Average precision for \"{entity_name}\" ({entity_id}): {ap:.2f}.\n"
               f"\tGround truth: {gt_entities}\n"
               f"\tprediction: {predicted_entities}")
@@ -65,11 +61,13 @@ def main(args):
 
     if ModelNames.MANUAL_SCORING.value in args.models:
         logger.info("Initializing manual type scorer...")
+        from src.type_computation.prominent_type_computer import ProminentTypeComputer
         type_computer = ProminentTypeComputer(args.input_files, None, entity_db=entity_db)
         logger.info("Evaluating manual type scorer...")
         evaluate(type_computer.compute_entity_score, benchmark, entity_db, args.output_file)
     if ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models:
         logger.info("Initializing gradient boost regression model ...")
+        from src.type_computation.gradient_boost_regressor import GradientBoostRegressor
         gb = GradientBoostRegressor(args.input_files, entity_db=entity_db)
         if args.load_model:
             gb.load_model(args.load_model)
@@ -82,6 +80,7 @@ def main(args):
             gb.save_model(args.save_model)
     if ModelNames.GPT.value in args.models:
         logger.info("Initializing GPT ...")
+        from src.type_computation.gpt import GPT
         gpt = GPT(entity_db)
         logger.info("Evaluating GPT ...")
         evaluate(gpt.predict, benchmark, entity_db, args.output_file)
@@ -97,6 +96,12 @@ def main(args):
         evaluate(nn.predict, benchmark, entity_db, args.output_file)
         if args.save_model:
             nn.save_model(args.save_model)
+    if ModelNames.ORACLE.value in args.models:
+        logger.info("Initializing Oracle ...")
+        from src.type_computation.oracle import Oracle
+        oracle = Oracle(benchmark, entity_db)
+        logger.info("Evaluating Oracle ...")
+        evaluate(oracle.predict, benchmark, entity_db, args.output_file)
 
 
 if __name__ == "__main__":
@@ -107,7 +112,7 @@ if __name__ == "__main__":
     parser.add_argument("--load_model", type=str, help="File from which to load the model.")
     parser.add_argument("-b", "--benchmark_file", type=str, required=True,
                         help="File that contains the benchmark.")
-    parser.add_argument("-i", "--input_files", type=str, nargs='+',
+    parser.add_argument("-i", "--input_files", type=str, nargs='+', default="",
                         help="File that contains the predicate variance scores")
     parser.add_argument("-train", "--training_file", type=str,
                         help="File that contains the training dataset.")
@@ -117,10 +122,6 @@ if __name__ == "__main__":
     args = parser.parse_args()
     logger = log.setup_logger()
 
-    if not args.input_files and (ModelNames.MANUAL_SCORING.value in args.models or
-                                 ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models):
-        logger.info("The model you selected requires that you provide predicate variance score files via the -i option.")
-        sys.exit(1)
     if (not args.training_file and not args.load_model and
             (ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models or ModelNames.NEURAL_NETWORK in args.models)):
         logger.info("The model you selected requires that you provide a training file via the -train option or load a "
