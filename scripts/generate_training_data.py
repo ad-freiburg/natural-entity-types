@@ -14,7 +14,7 @@ from src.utils import log
 
 def main(args):
     entity_db = EntityDatabase()
-    entity_db.load_entity_descriptions()
+    entity_db.load_entity_to_description()
     entity_db.load_entity_to_name()
     entity_db.load_instance_of_mapping()
     entity_db.load_subclass_of_mapping()

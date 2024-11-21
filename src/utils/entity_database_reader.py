@@ -221,15 +221,46 @@ class EntityDatabaseReader:
         return mapping
 
     @staticmethod
-    def read_from_dbm(db_file: str, value_type: Optional[type] = str, separator: Optional[str] = ",") -> Database:
-        dbm_db = dbm.open(db_file, "r")
-        db = Database(dbm_db, value_type, separator)
+    def read_from_db(db_file: str, value_type: Optional[type] = str, separator: Optional[str] = ",") -> Database:
+        db = Database(db_file, value_type, separator)
         return db
 
     @staticmethod
-    def read_entity_description_db() -> Database:
+    def read_description_db() -> Database:
         filename = settings.ENTITY_TO_DESCRIPTION_DB
         logger.info(f"Loading entity ID to description database from {filename} ...")
-        description_db = EntityDatabaseReader.read_from_dbm(filename)
+        description_db = EntityDatabaseReader.read_from_db(filename)
         logger.info(f"-> {len(description_db)} entity ID to description mappings loaded.")
         return description_db
+
+    @staticmethod
+    def read_name_db() -> Database:
+        filename = settings.ENTITY_TO_LABEL_DB
+        logger.info(f"Loading entity ID to label database from {filename} ...")
+        label_db = EntityDatabaseReader.read_from_db(filename)
+        logger.info(f"-> {len(label_db)} entity ID to label mappings loaded.")
+        return label_db
+
+    @staticmethod
+    def read_sitelink_db() -> Database:
+        filename = settings.ENTITY_TO_SITELINKS_DB
+        logger.info(f"Loading entity ID to number of sitelinks database from {filename} ...")
+        sitelinks_db = EntityDatabaseReader.read_from_db(filename, value_type=int)
+        logger.info(f"-> {len(sitelinks_db)} entity ID to number of sitelinks mappings loaded.")
+        return sitelinks_db
+
+    @staticmethod
+    def read_instance_of_db() -> Database:
+        filename = settings.ENTITY_TO_P31_DB
+        logger.info(f"Loading entity ID to instance of database from {filename} ...")
+        instance_of_db = EntityDatabaseReader.read_from_db(filename, value_type=list)
+        logger.info(f"-> {len(instance_of_db)} entity ID to instance of mappings loaded.")
+        return instance_of_db
+
+    @staticmethod
+    def read_subclass_of_db() -> Database:
+        filename = settings.ENTITY_TO_P279_DB
+        logger.info(f"Loading entity ID to subclass of database from {filename} ...")
+        subclass_of_db = EntityDatabaseReader.read_from_db(filename, value_type=list)
+        logger.info(f"-> {len(subclass_of_db)} entity ID to subclass of mappings loaded.")
+        return subclass_of_db

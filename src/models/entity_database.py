@@ -27,37 +27,52 @@ class EntityDatabase:
     def load_entities(self):
         self.entities = EntityDatabaseReader.read_all_entities()
 
-    def load_instance_of_mapping(self):
+    def load_instance_of_mapping(self, as_dictionary=False):
         if not self.instance_of_mapping:
-            self.instance_of_mapping = EntityDatabaseReader.read_instance_of_mapping()
+            if as_dictionary:
+                self.instance_of_mapping = EntityDatabaseReader.read_instance_of_mapping()
+            else:
+                self.instance_of_mapping = EntityDatabaseReader.read_instance_of_db()
 
     def load_reverse_instance_of_mapping(self):
         if not self.reverse_instance_of_mapping:
             self.reverse_instance_of_mapping = EntityDatabaseReader.read_reverse_instance_of_mapping()
 
-    def load_subclass_of_mapping(self):
+    def load_subclass_of_mapping(self, as_dictionary=False):
         if not self.subclass_of_mapping:
-            self.subclass_of_mapping = EntityDatabaseReader.read_subclass_of_mapping()
+            if as_dictionary:
+                self.subclass_of_mapping = EntityDatabaseReader.read_subclass_of_mapping()
+            else:
+                self.subclass_of_mapping = EntityDatabaseReader.read_subclass_of_db()
 
     def load_reverse_subclass_of_mapping(self):
         if not self.reverse_subclass_of_mapping:
             self.reverse_subclass_of_mapping = EntityDatabaseReader.read_reverse_subclass_of_mapping()
 
-    def load_entity_to_name(self):
+    def load_entity_to_name(self, as_dictionary=False):
         if not self.entity_to_name:
-            self.entity_to_name = EntityDatabaseReader.read_name_mapping()
+            if as_dictionary:
+                self.entity_to_name = EntityDatabaseReader.read_name_mapping()
+            else:
+                self.entity_to_name = EntityDatabaseReader.read_name_db()
 
     def load_name_to_entity(self):
         if not self.name_to_entity:
             self.name_to_entity = EntityDatabaseReader.read_name_to_entity_mapping()
 
-    def load_entity_to_description(self):
+    def load_entity_to_description(self, as_dictionary=False):
         if not self.entity_to_description:
-            self.entity_to_description = EntityDatabaseReader.read_entity_description_db()
+            if as_dictionary:
+                self.entity_to_description = EntityDatabaseReader.read_description_mapping()
+            else:
+                self.entity_to_description = EntityDatabaseReader.read_description_db()
 
-    def load_entity_descriptions(self):
-        if not self.entity_descriptions:
-            self.entity_descriptions = EntityDatabaseReader.read_descriptions()
+    def load_entity_popularity(self, as_dictionary=False):
+        if not self.entity_to_popularity:
+            if as_dictionary:
+                self.entity_to_popularity = EntityDatabaseReader.read_entity_popularity_mapping()
+            else:
+                self.entity_to_popularity = EntityDatabaseReader.read_sitelink_db()
 
     def load_type_frequency(self):
         if not self.type_frequency:
@@ -70,10 +85,6 @@ class EntityDatabase:
     def load_accumulated_type_popularity(self):
         if not self.accumulated_type_popularity:
             self.accumulated_type_popularity = EntityDatabaseReader.read_accumulated_type_popularity_mapping()
-
-    def load_entity_popularity(self):
-        if not self.entity_to_popularity:
-            self.entity_to_popularity = EntityDatabaseReader.read_entity_popularity_mapping()
 
     def load_prominent_types(self):
         if not self.prominent_types:

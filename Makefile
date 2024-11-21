@@ -11,9 +11,14 @@ WIKIDATA_MAPPINGS_DIR = ${DATA_DIR}wikidata_mappings/
 WIKIDATA_SPARQL_ENDPOINT = https://qlever.cs.uni-freiburg.de/api/wikidata
 # Note that the query names are also used for generating the file name by
 # casting the query name to lowercase and appending .tsv
-DATA_QUERY_NAMES = QID_TO_DESCRIPTION  #QID_TO_LABEL QID_TO_SITELINKS QID_TO_P31 QID_TO_P279
+DATA_QUERY_NAMES = QID_TO_DESCRIPTION QID_TO_LABEL QID_TO_SITELINKS QID_TO_P31 QID_TO_P279
 
 # Get data for queries from $(DATA_QUERY_VARABLES) via $(WIKIDATA_SPARQL_ENDPOINT) and write to tsv files.
+
+generate_all: generate_wikidata_mappings compute_type_features compute_predicate_variances
+
+generate_wikidata_mappings: get_qlever_mappings generate_databases
+
 get_qlever_mappings:
 	@echo
 	@echo "[get_wikidata_mappings] Get data for given queries in batches."
@@ -25,6 +30,29 @@ get_qlever_mappings:
 	  LOWER_QUERY_NAME=$$(echo $${QUERY_NAME} | tr '[:upper:]' '[:lower:]'); \
 	  $(MAKE) -sB API=$${WIKIDATA_SPARQL_ENDPOINT} QUERY_VARIABLE=$${QUERY_NAME}_QUERY OUTFILE=$${WIKIDATA_MAPPINGS_DIR}$${LOWER_QUERY_NAME}.tsv query; done
 	@echo
+
+generate_databases:
+	@echo
+	@echo "[generate_databases] Build databases from large Wikidata mappings."
+	@echo
+	python3 scripts/create_databases.py ${WIKIDATA_MAPPINGS_DIR}qid_to_label.tsv
+	python3 scripts/create_databases.py ${WIKIDATA_MAPPINGS_DIR}qid_to_description.tsv
+	python3 scripts/create_databases.py ${WIKIDATA_MAPPINGS_DIR}qid_to_sitelinks.tsv
+	python3 scripts/create_databases.py ${WIKIDATA_MAPPINGS_DIR}qid_to_p31.tsv -f multiple_values
+	python3 scripts/create_databases.py ${WIKIDATA_MAPPINGS_DIR}qid_to_p279.tsv -f multiple_values
+
+compute_type_features:
+	@echo
+	@echo "[compute_type_features] Compute feature mappings from wikidata mappings."
+	@echo
+	python3 scripts/get_type_frequencies_and_popularities.py
+
+compute_predicate_variances:
+	@echo
+	@echo "[compute_predicate_variances] Compute predicate variances for various types"
+	@echo
+	python3 scripts/get_predicate_variance.py -qid all
+
 
 # Get results for $(QUERY), convert to tsv and append to $(OUTFILE)
 #
@@ -51,6 +79,8 @@ query:
 	@wc -l ${OUTFILE} | cut -f 1 -d " "
 	@echo "First and last line:"
 	@head -1 ${OUTFILE} && tail -1 ${OUTFILE}
+
+
 
 define PREFIXES
 PREFIX wd: <http://www.wikidata.org/entity/>
