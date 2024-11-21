@@ -32,9 +32,13 @@ class FeatureScores:
         self.norm_variances = self.normalize_scores(self.variances.items(), k, medium, minimum, maximum, plot_name)
 
     def precompute_normalized_idfs(self, k=5, medium=None, minimum=None, maximum=None, plot_name=None):
-        idf_scores = [(t, math.log(self.n_entities / self.entity_db.get_type_frequency(t)))
+        self.idf_scores = [(t, math.log(self.n_entities / self.entity_db.get_type_frequency(t)))
                       for t in self.entity_db.type_frequency.keys()]
-        self.norm_idfs = self.normalize_scores(idf_scores, k, medium, minimum, maximum, plot_name)
+        self.norm_idfs = self.normalize_scores(self.idf_scores, k, medium, minimum, maximum, plot_name)
+
+    def precompute_idfs(self):
+        self.idf_scores = {t: math.log(self.n_entities / self.entity_db.get_type_frequency(t))
+                      for t in self.entity_db.type_frequency.keys()}
 
     def precompute_normalized_popularities(self):
         avg_log_pop_scores = {}
@@ -70,6 +74,12 @@ class FeatureScores:
         if not self.variances:
             logger.warning(f"get_variance() called without having called precompute_normalized_variances().")
         return self.variances[type_id] if type_id in self.variances else 0
+
+    def get_idf(self, type_id):
+        return self.idf_scores[type_id] if type_id in self.idf_scores else 0
+
+    def get_average_type_popularity(self, type_id):
+        return self.entity_db.get_accumulated_type_popularity(type_id)
 
     def load_predicate_variances(self, predicate_variance_files):
         self.variances = dict()
@@ -116,6 +126,8 @@ class FeatureScores:
         and largest for values in the middle of the spectrum.
         The score should be normalized to values between 0 and 1 to be comparable
         to values for other types"""
+        if not scores:
+            return scores
         scores = sorted(scores, key=lambda x: x[1])
         half_sum = sum([v[1] for v in scores]) / 2
         half_sum_idx = 0

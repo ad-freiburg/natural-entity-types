@@ -54,7 +54,7 @@ class GradientBoostRegressor:
             desc = self.entity_db.get_entity_description(e)
             entity_name = self.entity_db.get_entity_name(e)
             for t, path_length in candidate_types.items():
-                norm_pop = self.feature_scores.get_normalized_popularity(t)
+                norm_pop = self.feature_scores.get_average_type_popularity(t)
                 norm_var = self.feature_scores.get_normalized_variance(t)
                 norm_idf = self.feature_scores.get_normalized_idf(t)
                 type_name = self.entity_db.get_entity_name(t)
@@ -86,7 +86,7 @@ class GradientBoostRegressor:
             desc = self.entity_db.get_entity_description(e)
             entity_name = self.entity_db.get_entity_name(e)
             for t, path_length in candidate_types:
-                norm_pop = self.feature_scores.get_normalized_popularity(t)
+                norm_pop = self.feature_scores.get_average_type_popularity(t)
                 norm_var = self.feature_scores.get_normalized_variance(t)
                 norm_idf = self.feature_scores.get_normalized_idf(t)
                 type_name = self.entity_db.get_entity_name(t)
@@ -102,7 +102,6 @@ class GradientBoostRegressor:
             predicted_type_id = candidate_types[np.argmax(y_pred)][0]
             if predicted_type_id in gt_types:
                 res += 1
-            print(f"Entity: {self.entity_db.get_entity_name(e)}, prediction: {self.entity_db.get_entity_name(predicted_type_id)} vs. {', '.join([self.entity_db.get_entity_name(gt) for gt in gt_types])}")
         accuracy = res / len(benchmark)
         print(f"Model yields correct prediction for {accuracy * 100:.1f}% of entities in the test set.")
 
@@ -121,7 +120,7 @@ class GradientBoostRegressor:
         X = []
         entity_name = self.entity_db.get_entity_name(entity_id)
         for t, path_length in candidate_types:
-            norm_pop = self.feature_scores.get_normalized_popularity(t)
+            norm_pop = self.feature_scores.get_average_type_popularity(t)
             norm_var = self.feature_scores.get_normalized_variance(t)
             norm_idf = self.feature_scores.get_normalized_idf(t)
             type_name = self.entity_db.get_entity_name(t)
