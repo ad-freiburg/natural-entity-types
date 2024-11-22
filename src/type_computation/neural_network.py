@@ -76,6 +76,8 @@ class NeuralTypePredictor:
 
         self.model = None
 
+        self.type_embedding_cache = {}
+
     def initialize_model(self, n_features, hidden_units, dropout):
         self.model = NeuralNet(n_features, hidden_units, 1, dropout)
 
@@ -95,7 +97,11 @@ class NeuralTypePredictor:
         norm_var = self.feature_scores.get_normalized_variance(type_id)
         norm_idf = self.feature_scores.get_normalized_idf(type_id)
         type_name = self.entity_db.get_entity_name(type_id)
-        type_name_embedding = self.get_text_embedding(type_name)
+        if type_name in self.type_embedding_cache:
+            type_name_embedding = self.type_embedding_cache[type_name]
+        else:
+            type_name_embedding = self.get_text_embedding(type_name)
+            self.type_embedding_cache[type_name] = type_name_embedding
         type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
         len_type_name = len(type_name) if type_name else 0
         len_desc = len(desc) if desc else 0
@@ -104,11 +110,11 @@ class NeuralTypePredictor:
         return torch.cat((torch.Tensor(features).unsqueeze(0), desc_embedding, type_name_embedding), dim=1)
 
     def create_dataset(self, filename):
-        logger.info("Creating training data...")
-        training_benchmark = BenchmarkReader.read_benchmark(filename)
-        X = torch.Tensor()
+        logger.info(f"Creating dataset from {filename}...")
+        training_dataset = BenchmarkReader.read_benchmark(filename)
+        X = []
         y = []
-        for e, gt_types in training_benchmark.items():
+        for i, (e, gt_types) in enumerate(training_dataset.items()):
             # Add a row for each entity - candidate type pair.
             candidate_types = self.entity_db.get_entity_types_with_path_length(e)
             desc = self.entity_db.get_entity_description(e)
@@ -116,33 +122,75 @@ class NeuralTypePredictor:
             entity_name = self.entity_db.get_entity_name(e)
             for t, path_length in candidate_types.items():
                 sample_vector = self.create_feature_vector(t, path_length, desc, desc_embedding, entity_name)
-                X = torch.cat((X, sample_vector), dim=0)
+                X.append(sample_vector)
                 y.append(int(t in gt_types))
-        logger.info(f"X shape: {X.shape}")
-        return X, torch.Tensor(y)
+            print(f"\rAdded sample {i + 1}/{len(training_dataset)} to dataset.", end="")
+        print()
+        X = torch.cat(X, dim=0)
+        logger.info(f"Shape of X: {X.shape}")
+        y = torch.Tensor(y)
+        return X, y
 
     def train(self,
               x_train: torch.Tensor,
               y_train: torch.Tensor,
-              n_epochs: int = 200,
+              n_epochs: int = 100,
               batch_size: int = 16,
-              learning_rate: float = 0.01):
+              learning_rate: float = 0.01,
+              patience: int = 5,
+              val: str = None):
         """
         Train the neural network.
         """
+        # Initialize variables for Early Stopping
+        best_val_loss = float("inf")
+        patience_counter = 0
+        best_model_state = None
+        X_val, y_val = None, None
+        if val:
+            X_val, y_val = self.create_dataset(val)
+            y_val = y_val.unsqueeze(-1)
+
         self.model.train()
         loss_function = torch.nn.BCELoss()
         optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
+        loss = 0
         for i in range(n_epochs):
             batches = training_batches(x_train, y_train, batch_size)
-            loss = 0
             for j, (X_batch, y_batch) in enumerate(batches):
                 y_hat = self.model(X_batch)
                 loss = loss_function(y_hat, y_batch)
                 optimizer.zero_grad()
                 loss.backward()
                 optimizer.step()
+
+            if val:
+                self.model.eval()
+                with torch.no_grad():
+                    y_val_pred = self.model(X_val)
+
+                    val_loss = loss_function(y_val_pred, y_val).item()
+
+                # Check for improvement
+                if val_loss < best_val_loss:
+                    best_val_loss = val_loss
+                    patience_counter = 0  # Reset patience counter
+                    # Store the best model
+                    best_model_state = self.model.state_dict()
+                else:
+                    patience_counter += 1
+                    logger.info(f"No improvement for {patience_counter} epoch(s).")
+
+                # Early stopping condition
+                if patience_counter >= patience and best_model_state is not None:
+                    logger.info(f"Early stopping triggered at epoch {i + 1}")
+                    self.model.load_state_dict(best_model_state)
+                    break
+
+                self.model.train()
+
             logger.info(f"epoch {i + 1}, loss: {float(loss)}")
+        self.model.eval()
 
     def predict(self, entity_id):
         candidate_types = self.entity_db.get_entity_types_with_path_length(entity_id)
@@ -167,7 +215,7 @@ class NeuralTypePredictor:
         Save the model and its settings in a dictionary.
         """
         torch.save({'model': self.model}, model_path)
-        logger.info(f"Dictionary with trained model saved to {model_path}")
+        logger.info(f"Saved trained model to {model_path}")
 
     def load_model(self, model_path):
         """

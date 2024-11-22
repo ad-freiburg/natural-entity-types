@@ -92,7 +92,7 @@ def main(args):
         else:
             nn.initialize_model(8 + 300*2, 512, 0)
             X, y = nn.create_dataset(args.training_file)
-            nn.train(X, y)
+            nn.train(X, y, val=args.validation_file)
         evaluate(nn.predict, benchmark, entity_db, args.output_file)
         if args.save_model:
             nn.save_model(args.save_model)
@@ -116,6 +116,8 @@ if __name__ == "__main__":
                         help="File that contains the predicate variance scores")
     parser.add_argument("-train", "--training_file", type=str,
                         help="File that contains the training dataset.")
+    parser.add_argument("-val", "--validation_file", type=str,
+                        help="File containing the validation dataset. Relevant for the neural network model only.")
     parser.add_argument("-o", "--output_file", type=str,
                         help="File to which to write the evaluation results to.")
 
