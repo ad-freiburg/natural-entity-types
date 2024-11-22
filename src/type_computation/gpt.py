@@ -2,14 +2,13 @@ import os
 import openai
 import time
 
-from src.evaluation.benchmark_reader import BenchmarkReader
 from src.models.entity_database import EntityDatabase
 
 
 class GPT:
     def __init__(self, entity_db: EntityDatabase, model=None):
         openai.api_key = os.getenv("OPENAI_API_KEY")
-        self.model = model if model else "gpt-4-1106-preview"
+        self.model = model if model else "gpt-4o"
         self.temperature = 0.7
 
         # Load entity database mappings if they have not been loaded already
@@ -17,22 +16,6 @@ class GPT:
         self.entity_db.load_instance_of_mapping()
         self.entity_db.load_subclass_of_mapping()
         self.entity_db.load_entity_to_name()
-
-    def evaluate(self, test_file: str):
-        benchmark = BenchmarkReader.read_benchmark(test_file)
-        res = 0
-        for e, gt_types in benchmark.items():
-            # candidate_types = list(self.entity_db.get_entity_types(e))
-            # for t in candidate_types:
-            predicted_type_id = "42"
-            if predicted_type_id in gt_types:
-                res += 1
-            print(
-                f"Entity: {self.entity_db.get_entity_name(e)}, "
-                f"prediction: {self.entity_db.get_entity_name(predicted_type_id)} vs. "
-                f"{', '.join([self.entity_db.get_entity_name(gt) for gt in gt_types])}")
-        accuracy = res / len(benchmark)
-        print(f"Model yields correct prediction for {accuracy * 100:.1f}% of entities in the test set.")
 
     def predict(self, entity_id: str):
         instructions = "The user provides a Wikidata entity with name and QID, followed by a list of Wikidata types for " \
