@@ -3,6 +3,7 @@ import argparse
 
 sys.path.append(".")
 
+from src import settings
 from src.utils import log
 from src.evaluation.benchmark_reader import BenchmarkReader
 from src.evaluation.metrics import Metrics
@@ -11,7 +12,7 @@ from src.type_computation.model_names import ModelNames
 from src.type_computation.neural_network import NeuralTypePredictor
 
 
-def evaluate(scoring_function, benchmark, entity_db, output_file=None):
+def evaluate(scoring_function, benchmark, entity_db, output_file=None, verbose=False):
     if output_file:
         output_file = open(output_file, "w", encoding="utf8")
     aps = []
@@ -29,9 +30,10 @@ def evaluate(scoring_function, benchmark, entity_db, output_file=None):
         entity_name = entity_db.get_entity_name(entity_id)
         gt_entities = ", ".join([f"{entity_db.get_entity_name(t)} ({t})" for t in benchmark[entity_id]])
         predicted_entities = ", ".join([f"{entity_db.get_entity_name(t)} ({t})" for t in result_types[:6]]) + "..."
-        print(f"Average precision for \"{entity_name}\" ({entity_id}): {ap:.2f}.\n"
-              f"\tGround truth: {gt_entities}\n"
-              f"\tprediction: {predicted_entities}")
+        if verbose:
+            print(f"Average precision for \"{entity_name}\" ({entity_id}): {ap:.2f}.\n"
+                  f"\tGround truth: {gt_entities}\n"
+                  f"\tprediction: {predicted_entities}")
         aps.append(ap)
         p_at_1s.append(p_at_1)
         p_at_rs.append(p_at_r)
@@ -42,14 +44,14 @@ def evaluate(scoring_function, benchmark, entity_db, output_file=None):
     mean_ap = sum(aps) / len(aps)
     mean_p_at_1 = sum(p_at_1s) / len(p_at_1s)
     mean_p_at_r = sum(p_at_rs) / len(p_at_rs)
-    print(f"Mean average precision: {mean_ap:.2f}")
-    print(f"Mean precision at 1: {mean_p_at_1:.2f}")
-    print(f"Mean precision at R: {mean_p_at_r:.2f}")
+    print(f"MAP: {mean_ap:.2f}")
+    print(f"MP @ 1: {mean_p_at_1:.2f}")
+    print(f"MP @ R: {mean_p_at_r:.2f}")
 
     if output_file:
-        output_file.write(f"Mean average precision: {mean_ap:.2f}\n")
-        output_file.write(f"Mean precision at 1: {mean_p_at_1:.2f}\n")
-        output_file.write(f"Mean precision at R: {mean_p_at_r:.2f}\n")
+        output_file.write(f"MAP: {mean_ap:.2f}\n")
+        output_file.write(f"MP @ 1: {mean_p_at_1:.2f}\n")
+        output_file.write(f"MP @ R: {mean_p_at_r:.2f}\n")
         output_file.close()
 
 
@@ -57,51 +59,57 @@ def main(args):
     entity_db = EntityDatabase()
     entity_db.load_entity_to_name()
 
-    benchmark = BenchmarkReader.read_benchmark(args.benchmark_file)
-
+    # Initialize models
+    predict_methods = []
     if ModelNames.MANUAL_SCORING.value in args.models:
         logger.info("Initializing manual type scorer...")
         from src.type_computation.prominent_type_computer import ProminentTypeComputer
-        type_computer = ProminentTypeComputer(args.input_files, None, entity_db=entity_db)
-        logger.info("Evaluating manual type scorer...")
-        evaluate(type_computer.compute_entity_score, benchmark, entity_db, args.output_file)
+        type_computer = ProminentTypeComputer(None, entity_db=entity_db)
+        predict_methods.append((type_computer.compute_entity_score, ModelNames.MANUAL_SCORING.value))
     if ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models:
         logger.info("Initializing gradient boost regression model ...")
         from src.type_computation.gradient_boost_regressor import GradientBoostRegressor
-        gb = GradientBoostRegressor(args.input_files, entity_db=entity_db)
+        gb = GradientBoostRegressor(entity_db=entity_db)
         if args.load_model:
             gb.load_model(args.load_model)
         else:
             X, y = gb.create_dataset(args.training_file)
             gb.train(X, y)
-        logger.info("Evaluating gradient boost regression model ...")
-        evaluate(gb.predict, benchmark, entity_db, args.output_file)
+        predict_methods.append((gb.predict, ModelNames.GRADIENT_BOOST_REGRESSOR.value))
         if args.save_model:
             gb.save_model(args.save_model)
     if ModelNames.GPT.value in args.models:
         logger.info("Initializing GPT ...")
         from src.type_computation.gpt import GPT
-        gpt = GPT(entity_db)
-        logger.info("Evaluating GPT ...")
-        evaluate(gpt.predict, benchmark, entity_db, args.output_file)
+        gpt = GPT(entity_db, model="gpt-4o")
+        predict_methods.append((gpt.predict, ModelNames.GPT.value))
     if ModelNames.NEURAL_NETWORK.value in args.models:
         logger.info("Initializing Neural Network ...")
-        nn = NeuralTypePredictor(args.input_files, entity_db)
+        nn = NeuralTypePredictor(entity_db)
         if args.load_model:
             nn.load_model(args.load_model)
         else:
             nn.initialize_model(8 + 300*2, 512, 0)
             X, y = nn.create_dataset(args.training_file)
             nn.train(X, y, val=args.validation_file)
-        evaluate(nn.predict, benchmark, entity_db, args.output_file)
+        predict_methods.append((nn.predict, ModelNames.NEURAL_NETWORK.value))
         if args.save_model:
             nn.save_model(args.save_model)
     if ModelNames.ORACLE.value in args.models:
         logger.info("Initializing Oracle ...")
         from src.type_computation.oracle import Oracle
-        oracle = Oracle(benchmark, entity_db)
-        logger.info("Evaluating Oracle ...")
-        evaluate(oracle.predict, benchmark, entity_db, args.output_file)
+        oracle = Oracle(entity_db)
+        predict_methods.append((oracle.predict, ModelNames.ORACLE.value))
+
+    # Evaluate all models on all benchmarks
+    for benchmark_file in args.benchmark_files:
+        print(f"***** Evaluating benchmark {benchmark_file} *****")
+        benchmark = BenchmarkReader.read_benchmark(benchmark_file)
+        for predict_method, model_name in predict_methods:
+            print(f"***** Evaluating {model_name} *****")
+            if model_name == ModelNames.ORACLE.value:
+                oracle.set_benchmark(benchmark)
+            evaluate(predict_method, benchmark, entity_db, args.output_file, verbose=args.verbose)
 
 
 if __name__ == "__main__":
@@ -110,16 +118,16 @@ if __name__ == "__main__":
                         help="Names of the models that will be evaluated.")
     parser.add_argument("--save_model", type=str, help="File to which to save the model.")
     parser.add_argument("--load_model", type=str, help="File from which to load the model.")
-    parser.add_argument("-b", "--benchmark_file", type=str, required=True,
+    parser.add_argument("-b", "--benchmark_files", type=str, required=True, nargs='+',
                         help="File that contains the benchmark.")
-    parser.add_argument("-i", "--input_files", type=str, nargs='+', default="",
-                        help="File that contains the predicate variance scores")
     parser.add_argument("-train", "--training_file", type=str,
                         help="File that contains the training dataset.")
     parser.add_argument("-val", "--validation_file", type=str,
                         help="File containing the validation dataset. Relevant for the neural network model only.")
     parser.add_argument("-o", "--output_file", type=str,
                         help="File to which to write the evaluation results to.")
+    parser.add_argument("-v", "--verbose", action="store_true",
+                        help="Print details about each evaluated benchmark entity.")
 
     args = parser.parse_args()
     logger = log.setup_logger()

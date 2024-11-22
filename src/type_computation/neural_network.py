@@ -25,7 +25,6 @@ class NeuralNet(torch.nn.Module):
         self.dropout1 = torch.nn.Dropout(dropout)
         self.sigmoid1 = torch.nn.Sigmoid()
         self.l2 = torch.nn.Linear(hidden_size, out_size)
-        self.dropout2 = torch.nn.Dropout(dropout)
         self.sigmoid2 = torch.nn.Sigmoid()
 
     def forward(self, x):
@@ -33,7 +32,6 @@ class NeuralNet(torch.nn.Module):
         out = self.dropout1(out)
         out = self.sigmoid1(out)
         out = self.l2(out)
-        out = self.dropout2(out)
         out = self.sigmoid2(out)
         return out
 
@@ -57,7 +55,7 @@ def training_batches(x_train: torch.Tensor,
 
 
 class NeuralTypePredictor:
-    def __init__(self, input_files, entity_db=None):
+    def __init__(self, entity_db=None):
         # Load entity database mappings if they have not been loaded already
         self.entity_db = entity_db if entity_db else EntityDatabase()
         self.entity_db.load_instance_of_mapping()
@@ -68,7 +66,7 @@ class NeuralTypePredictor:
         self.feature_scores = FeatureScores(self.entity_db)
         self.feature_scores.precompute_normalized_popularities()
         self.feature_scores.precompute_normalized_idfs(medium=7)
-        self.feature_scores.precompute_normalized_variances(input_files, medium=0.8)
+        self.feature_scores.precompute_normalized_variances(medium=0.8)
 
         logger.info("Loading spacy model...")
         self.nlp = spacy.load("en_core_web_lg")
@@ -203,7 +201,7 @@ class NeuralTypePredictor:
             sample_vector = self.create_feature_vector(t, path_length, desc, desc_embedding, entity_name)
             X = torch.cat((X, sample_vector), dim=0)
         if X.shape[0] == 0:
-            logger.info(f"Entity does not seem to have any type.")
+            logger.debug(f"Entity does not seem to have any type.")
             return None
         prediction = self.model(X)
         sorted_indices = torch.argsort(prediction.view(-1))

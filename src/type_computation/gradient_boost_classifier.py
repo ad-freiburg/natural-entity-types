@@ -27,11 +27,11 @@ from src.type_computation.feature_scores import FeatureScores
 
 
 class GradientBoostClassifier:
-    def __init__(self, input_files):
+    def __init__(self):
         self.feature_scores = FeatureScores()
         self.feature_scores.precompute_normalized_popularities()
         self.feature_scores.precompute_normalized_idfs(medium=7)
-        self.feature_scores.precompute_normalized_variances(input_files, medium=0.8)
+        self.feature_scores.precompute_normalized_variances(medium=0.8)
         self.entity_db = self.feature_scores.entity_db
 
         self.type_index = [t for t in self.entity_db.type_frequency.keys()]

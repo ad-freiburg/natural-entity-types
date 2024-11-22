@@ -1,4 +1,4 @@
-import dbm
+import os
 import logging
 from typing import Optional
 
@@ -219,6 +219,27 @@ class EntityDatabaseReader:
                 mapping[type_id].add(entity_id)
         logger.info(f"-> {len(mapping)} type to entities mappings loaded.")
         return mapping
+
+    @staticmethod
+    def read_predicate_variances():
+        variances = {}
+        count = 0
+        predicate_variance_files = os.listdir(settings.PREDICATE_VARIANCES_DIRECTORY)
+        for filename in predicate_variance_files:
+            input_file = os.path.join(settings.PREDICATE_VARIANCES_DIRECTORY, filename)
+            with open(input_file, "r", encoding="utf8") as file:
+                for line in file:
+                    entity_id, variance = line.strip("\n").split("\t")
+                    variance = float(variance)
+                    if entity_id in variances and variances[entity_id] != variance:
+                        logger.debug(f"Type {entity_id} exists already with score "
+                                    f"{variances[entity_id]:.4f} vs. {variance:.4f}")
+                        count += 1
+                    else:
+                        variances[entity_id] = variance
+        logger.info(f"Loaded {len(variances)} predicate variance scores from {len(predicate_variance_files)} files.")
+        logger.info(f"Found {count} types with different variance scores in the input files.")
+        return variances
 
     @staticmethod
     def read_from_db(db_file: str, value_type: Optional[type] = str, separator: Optional[str] = ",") -> Database:

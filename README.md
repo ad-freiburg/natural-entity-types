@@ -23,7 +23,7 @@ features by the models. This can take a couple of hours.
 
 To train and/or evaluate a model, adjust the following command according to your needs:
 
-    python3 scripts/evaluate.py -m <gbr|nn|gpt|oracle> --save_model <model_file> -b <benchmark_file> -i data/predicate_variances/* -train <training_file>
+    python3 scripts/evaluate.py -m <gbr|nn|gpt|oracle> --save_model <model_file> -b <benchmark_file> -train <training_file>
 
 - The `-m` option specifies the model to be evaluated. You can choose from `gbr` (Gradient Boost Regressor),
 `nn` (Feed Forward Neural Network), `gpt` (GPT-4), and `oracle`. `oracle` is a model that always predicts the ground

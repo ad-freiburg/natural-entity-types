@@ -10,9 +10,9 @@ from src.type_computation.gradient_boost_regressor import GradientBoostRegressor
 
 def main(args):
     if args.model.lower() in ["c", "classifier"]:
-        gb = GradientBoostClassifier(args.input_files)
+        gb = GradientBoostClassifier()
     else:
-        gb = GradientBoostRegressor(args.input_files)
+        gb = GradientBoostRegressor()
 
     X, y = gb.create_dataset(args.training_file)
     gb.train(X, y)
@@ -40,8 +40,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=__doc__)
 
-    parser.add_argument("-i", "--input_files", type=str, required=True, nargs='+',
-                        help="File that contains the predicate variance scores")
     parser.add_argument("-train", "--training_file", type=str, required=True,
                         help="File containing the training dataset.")
     parser.add_argument("-test", "--test_file", type=str,

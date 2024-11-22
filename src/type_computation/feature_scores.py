@@ -19,6 +19,7 @@ class FeatureScores:
         self.entity_db.load_entity_to_name()
         self.entity_db.load_accumulated_type_popularity()
         self.entity_db.load_type_frequency()
+        self.entity_db.load_predicate_variances()
 
         self.n_entities = len(self.entity_db.entity_to_name)
         self.variances = None
@@ -26,10 +27,9 @@ class FeatureScores:
         self.norm_idfs = None
         self.norm_popularities = None
 
-    def precompute_normalized_variances(self, predicate_variance_files, k=5, medium=None, minimum=None, maximum=None,
+    def precompute_normalized_variances(self, k=5, medium=None, minimum=None, maximum=None,
                                         plot_name=None):
-        self.load_predicate_variances(predicate_variance_files)
-        self.norm_variances = self.normalize_scores(self.variances.items(), k, medium, minimum, maximum, plot_name)
+        self.norm_variances = self.normalize_scores(self.entity_db.predicate_variances.items(), k, medium, minimum, maximum, plot_name)
 
     def precompute_normalized_idfs(self, k=5, medium=None, minimum=None, maximum=None, plot_name=None):
         self.idf_scores = [(t, math.log(self.n_entities / self.entity_db.get_type_frequency(t)))
@@ -80,24 +80,6 @@ class FeatureScores:
 
     def get_average_type_popularity(self, type_id):
         return self.entity_db.get_accumulated_type_popularity(type_id)
-
-    def load_predicate_variances(self, predicate_variance_files):
-        self.variances = dict()
-        count = 0
-        for input_file in predicate_variance_files:
-            with open(input_file, "r", encoding="utf8") as file:
-                for line in file:
-                    entity_id, variance = line.strip("\n").split("\t")
-                    variance = float(variance)
-                    if entity_id in self.variances and self.variances[entity_id] != variance:
-                        type_name = self.entity_db.get_entity_name(entity_id)
-                        logger.debug(f"Type {type_name} ({entity_id}) exists already with score "
-                                    f"{self.variances[entity_id]:.4f} vs. {variance:.4f}")
-                        count += 1
-                    else:
-                        self.variances[entity_id] = variance
-        logger.info(f"Loaded {len(self.variances)} predicate variance scores from {len(predicate_variance_files)} files.")
-        logger.info(f"Found {count} types with different variance scores in the input files.")
 
     @staticmethod
     def min_max_normalize(x, min, max):

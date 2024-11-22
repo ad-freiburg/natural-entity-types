@@ -9,7 +9,7 @@ import src.utils.log as log
 
 
 def main(args):
-    type_computer = ProminentTypeComputer(args.input_files, args.output_file)
+    type_computer = ProminentTypeComputer(args.output_file)
     if args.interactive:
         import re
         type_computer.entity_db.load_name_to_entity()
@@ -36,8 +36,6 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter,
                                      description=__doc__)
 
-    parser.add_argument("-i", "--input_files", type=str, required=True, nargs='+',
-                        help="File that contains the predicate variance scores")
     parser.add_argument("-o", "--output_file", type=str,
                         help="File to which to write the entity to prominent type mapping to.")
     parser.add_argument("-n", "--num_entities", type=int, default=100,

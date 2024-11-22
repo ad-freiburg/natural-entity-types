@@ -11,7 +11,7 @@ logger = logging.getLogger("main." + __name__.split(".")[-1])
 
 
 class ProminentTypeComputer:
-    def __init__(self, predicate_variance_files, output_file=None, entity_db=None):
+    def __init__(self, output_file=None, entity_db=None):
         self.output_file = output_file
 
         # Load entity database mappings if they have not been loaded already
@@ -25,8 +25,7 @@ class ProminentTypeComputer:
         self.n_entities = len(self.entity_db.entity_to_name)
 
         self.feature_scores = FeatureScores(self.entity_db)
-        self.feature_scores.precompute_normalized_variances(predicate_variance_files,
-                                                            medium=0.8,
+        self.feature_scores.precompute_normalized_variances(medium=0.8,
                                                             plot_name="normlized_variances")
         self.feature_scores.precompute_normalized_idfs(medium=7, plot_name="normalized_idf_scores")
         self.feature_scores.precompute_normalized_popularities()

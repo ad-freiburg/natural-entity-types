@@ -14,7 +14,7 @@ logger = logging.getLogger("main." + __name__.split(".")[-1])
 
 
 class GradientBoostRegressor:
-    def __init__(self, input_files, entity_db=None):
+    def __init__(self, entity_db=None):
         # Load entity database mappings if they have not been loaded already
         self.entity_db = entity_db if entity_db else EntityDatabase()
         self.entity_db.load_instance_of_mapping()
@@ -25,7 +25,7 @@ class GradientBoostRegressor:
         self.feature_scores = FeatureScores(self.entity_db)
         self.feature_scores.precompute_normalized_popularities()
         self.feature_scores.precompute_normalized_idfs(medium=7)
-        self.feature_scores.precompute_normalized_variances(input_files, medium=0.8)
+        self.feature_scores.precompute_normalized_variances(medium=0.8)
 
         self.num_estimators = 300
         self.model = GradientBoostingRegressor(loss='squared_error',
@@ -77,9 +77,9 @@ class GradientBoostRegressor:
         self.model.fit(X, y)
         prediction = self.model.predict(X)
         rmse = mean_squared_error(y, prediction) ** (1 / 2)
-        print(f"Root mean squared error: {rmse}")
+        logger.debug(f"Root mean squared error: {rmse}")
         accuracy = self.model.score(X, y)
-        print(f"Accuracy: {accuracy:.3f}")
+        logger.debug(f"Accuracy: {accuracy:.3f}")
 
     def evaluate(self, test_file):
         benchmark = BenchmarkReader.read_benchmark(test_file)
@@ -96,7 +96,7 @@ class GradientBoostRegressor:
                 X_test.append(features)
                 y_test.append(int(t in gt_types))
             if not X_test:
-                print(f"Entity does not seem to have any type.")
+                logger.debug(f"Entity does not seem to have any type.")
                 predicted_type_id = None
             else:
                 y_pred = self.model.predict(X_test)
@@ -104,7 +104,7 @@ class GradientBoostRegressor:
             if predicted_type_id in gt_types:
                 res += 1
         accuracy = res / len(benchmark)
-        print(f"Model yields correct prediction for {accuracy * 100:.1f}% of entities in the test set.")
+        logger.info(f"Model yields correct prediction for {accuracy * 100:.1f}% of entities in the test set.")
 
     def predict(self, entity_id, provided_candidate_types=None):
         candidate_types = self.entity_db.get_entity_types_with_path_length(entity_id)
@@ -124,7 +124,7 @@ class GradientBoostRegressor:
             features = self.create_feature_list(t, path_length, desc, entity_name)
             X.append(features)
         if not X:
-            print(f"Entity does not seem to have any type.")
+            logger.debug(f"Entity does not seem to have any type.")
             return None
         prediction = self.model.predict(X)
         sorted_indices = np.argsort(prediction)[::-1]
@@ -139,7 +139,7 @@ class GradientBoostRegressor:
         from sklearn.inspection import permutation_importance
         feature_names = ["Pop.", "Norm var.", "Norm IDF", "Len. path", "Type in desc.", "Len. type name", "Len. desc.", "Type in label"]
         feature_importance = self.model.feature_importances_
-        print(f"Feature importance: {feature_importance}")
+        logger.info(f"Feature importance: {feature_importance}")
         sorted_idx = np.argsort(feature_importance)
         pos = np.arange(sorted_idx.shape[0]) + 0.5
         fig = plt.figure(figsize=(12, 6))

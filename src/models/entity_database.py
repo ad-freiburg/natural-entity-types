@@ -23,6 +23,7 @@ class EntityDatabase:
         self.entity_to_popularity = {}
         self.entities = set()
         self.prominent_types = {}
+        self.predicate_variances = {}
 
     def load_entities(self):
         self.entities = EntityDatabaseReader.read_all_entities()
@@ -81,6 +82,10 @@ class EntityDatabase:
     def load_type_variance(self):
         if not self.type_variance:
             self.type_variance = EntityDatabaseReader.read_type_variance_mapping()
+
+    def load_predicate_variances(self):
+        if not self.predicate_variances:
+            self.predicate_variances = EntityDatabaseReader.read_predicate_variances()
 
     def load_accumulated_type_popularity(self):
         if not self.accumulated_type_popularity:
@@ -259,3 +264,8 @@ class EntityDatabase:
         if entity_id in self.prominent_types:
             return self.prominent_types[entity_id]
         return None
+
+    def get_predicate_variance(self, entity_id: str) -> Optional[str]:
+        if entity_id in self.predicate_variances:
+            return self.predicate_variances[entity_id]
+        return 0

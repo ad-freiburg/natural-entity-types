@@ -37,12 +37,12 @@ def main(args):
 
     if ModelNames.MANUAL_SCORING.value in args.model:
         logger.info("Loading manual type scorer...")
-        type_computer = ProminentTypeComputer(args.predicate_files, None, entity_db=entity_db)
+        type_computer = ProminentTypeComputer(None, entity_db=entity_db)
         logger.info("Predicting with manual type scorer...")
         predict(args.input_file, args.output_file, type_computer.compute_entity_score)
     elif ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.model:
         logger.info("Loading gradient boost regression model ...")
-        gb = GradientBoostRegressor(args.predicate_files, entity_db=entity_db)
+        gb = GradientBoostRegressor(entity_db=entity_db)
         X, y = gb.create_dataset(args.training_file)
         gb.train(X, y)
         logger.info("Predicting with gradient boost regression model ...")
@@ -61,18 +61,12 @@ if __name__ == "__main__":
                         help="Input file with entities for which to predict types.")
     parser.add_argument("-o", "--output_file", type=str, required=True,
                         help="File to which to write the evaluation results to.")
-    parser.add_argument("-p", "--predicate_files", type=str, nargs='+',
-                        help="File that contains the predicate variance scores")
     parser.add_argument("-train", "--training_file", type=str,
                         help="File that contains the training dataset.")
 
     args = parser.parse_args()
     logger = log.setup_logger()
 
-    if not args.predicate_files and (ModelNames.MANUAL_SCORING.value in args.model or
-                                     ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.model):
-        logger.info("The model you selected requires that you provide predicate variance score files via the -p option.")
-        sys.exit(1)
     if not args.training_file and ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.model:
         logger.info("The model you selected requires that you provide a training file via the -train option.")
         sys.exit(1)
