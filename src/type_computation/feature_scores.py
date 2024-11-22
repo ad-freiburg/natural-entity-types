@@ -83,6 +83,7 @@ class FeatureScores:
 
     def load_predicate_variances(self, predicate_variance_files):
         self.variances = dict()
+        count = 0
         for input_file in predicate_variance_files:
             with open(input_file, "r", encoding="utf8") as file:
                 for line in file:
@@ -90,10 +91,13 @@ class FeatureScores:
                     variance = float(variance)
                     if entity_id in self.variances and self.variances[entity_id] != variance:
                         type_name = self.entity_db.get_entity_name(entity_id)
-                        logger.info(f"Type {type_name} ({entity_id}) exists already with score "
+                        logger.debug(f"Type {type_name} ({entity_id}) exists already with score "
                                     f"{self.variances[entity_id]:.4f} vs. {variance:.4f}")
+                        count += 1
                     else:
                         self.variances[entity_id] = variance
+        logger.info(f"Loaded {len(self.variances)} predicate variance scores from {len(predicate_variance_files)} files.")
+        logger.info(f"Found {count} types with different variance scores in the input files.")
 
     @staticmethod
     def min_max_normalize(x, min, max):
