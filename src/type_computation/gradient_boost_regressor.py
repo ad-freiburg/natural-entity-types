@@ -95,9 +95,12 @@ class GradientBoostRegressor:
                 features = self.create_feature_list(t, path_length, desc, entity_name)
                 X_test.append(features)
                 y_test.append(int(t in gt_types))
-            X_test = np.array(X_test)
-            y_pred = self.model.predict(X_test)
-            predicted_type_id = candidate_types[np.argmax(y_pred)][0]
+            if not X_test:
+                print(f"Entity does not seem to have any type.")
+                predicted_type_id = None
+            else:
+                y_pred = self.model.predict(X_test)
+                predicted_type_id = candidate_types[np.argmax(y_pred)][0]
             if predicted_type_id in gt_types:
                 res += 1
         accuracy = res / len(benchmark)
@@ -134,8 +137,9 @@ class GradientBoostRegressor:
         https://scikit-learn.org/stable/auto_examples/ensemble/plot_gradient_boosting_regression.html
         """
         from sklearn.inspection import permutation_importance
-        feature_names = ["Norm pop.", "Norm var.", "Norm IDF"]
+        feature_names = ["Pop.", "Norm var.", "Norm IDF", "Len. path", "Type in desc.", "Len. type name", "Len. desc.", "Type in label"]
         feature_importance = self.model.feature_importances_
+        print(f"Feature importance: {feature_importance}")
         sorted_idx = np.argsort(feature_importance)
         pos = np.arange(sorted_idx.shape[0]) + 0.5
         fig = plt.figure(figsize=(12, 6))
