@@ -93,7 +93,10 @@ def main(args):
         if args.load_model:
             nn.load_model(args.load_model)
         else:
-            nn.initialize_model(512, 0.2)
+            nn.initialize_model(hidden_layer_sizes=512,
+                                hidden_layers=1,
+                                dropout=0.2,
+                                activation="sigmoid")
             X, y = nn.create_dataset(args.training_file)
             X_val, y_val = None, None
             if args.validation_file:

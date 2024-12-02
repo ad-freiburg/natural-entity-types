@@ -78,8 +78,57 @@ class NeuralTypePredictor:
 
         self.type_embedding_cache = {}
 
-    def initialize_model(self, hidden_units, dropout):
-        self.model = NeuralNet(self.n_features, hidden_units, 1, dropout)
+    # def initialize_model(self, hidden_units, dropout):
+    #     self.model = NeuralNet(self.n_features, hidden_units, 1, dropout)
+
+    def initialize_model(self, hidden_layer_sizes=512, hidden_layers=1, dropout=0.5, activation="sigmoid"):
+        """
+        Initialize a PyTorch model with the given parameters.
+
+        Parameters:
+        - input_size (int): Number of input features.
+        - output_size (int): Number of output features (e.g., number of classes for classification).
+        - hidden_layer_sizes (int): Number of neurons in each hidden layer.
+        - hidden_layers (int): Number of hidden layers.
+        - dropout (float): Dropout probability (0 means no dropout).
+        - activation (str): Activation function ('relu', 'tanh', 'sigmoid').
+
+        Returns:
+        - model (nn.Module): A PyTorch model.
+        """
+        # Define a dictionary for supported activation functions
+        activations = {
+            "relu": torch.nn.ReLU,
+            "tanh": torch.nn.Tanh,
+            "sigmoid": torch.nn.Sigmoid,
+        }
+
+        # Check if the provided activation is supported
+        if activation not in activations:
+            raise ValueError(f"Unsupported activation function: {activation}. Choose from {list(activations.keys())}")
+
+        layers = []
+
+        # Input layer
+        input_size = self.n_features
+        layers.append(torch.nn.Linear(input_size, hidden_layer_sizes))
+        layers.append(activations[activation]())
+        layers.append(torch.nn.Dropout(dropout))
+
+        # Hidden layers
+        for _ in range(hidden_layers - 1):
+            layers.append(torch.nn.Linear(hidden_layer_sizes, hidden_layer_sizes))
+            layers.append(activations[activation]())
+            layers.append(torch.nn.Dropout(dropout))
+
+        # Output layer
+        layers.append(torch.nn.Linear(hidden_layer_sizes, 1))
+
+        # Add Sigmoid activation to ensure outputs are between 0 and 1
+        layers.append(torch.nn.Sigmoid())
+
+        # Define the model as a sequential container
+        self.model = torch.nn.Sequential(*layers)
 
     def get_text_embedding(self, string):
         if not string:
@@ -150,8 +199,10 @@ class NeuralTypePredictor:
               n_epochs: int = 100,
               batch_size: int = 16,
               learning_rate: float = 0.01,
+              optimizer: str = None,
               patience: int = 5,
-              val: str = None):
+              X_val: torch.Tensor = None,
+              y_val: torch.Tensor = None):
         """
         Train the neural network.
         """
@@ -159,14 +210,18 @@ class NeuralTypePredictor:
         best_val_loss = float("inf")
         patience_counter = 0
         best_model_state = None
-        X_val, y_val = None, None
-        if val:
-            X_val, y_val = self.create_dataset(val)
+        if X_val is not None and y_val is not None:
             y_val = y_val.unsqueeze(-1)
+        elif X_val is not None or y_val is not None:
+            logger.warning(f"Both X_val and y_val must be provided for validation.")
 
         self.model.train()
         loss_function = torch.nn.BCELoss()
-        optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
+
+        if optimizer == "Adam":
+            optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
+        else:
+            optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
         loss = 0
         for i in range(n_epochs):
             batches = training_batches(x_train, y_train, batch_size)
@@ -177,7 +232,7 @@ class NeuralTypePredictor:
                 loss.backward()
                 optimizer.step()
 
-            if val:
+            if X_val is not None and y_val is not None:
                 self.model.eval()
                 with torch.no_grad():
                     y_val_pred = self.model(X_val)
