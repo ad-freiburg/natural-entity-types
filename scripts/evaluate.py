@@ -5,58 +5,21 @@ sys.path.append(".")
 
 from src.utils import log
 from src.evaluation.benchmark_reader import BenchmarkReader
-from src.evaluation.metrics import Metrics
+from src.evaluation.metrics import MetricName
 from src.models.entity_database import EntityDatabase
 from src.type_computation.model_names import ModelNames
 from src.type_computation.neural_network import NeuralTypePredictor
+from src.evaluation.evaluation import evaluate
 
 
-def evaluate(scoring_function, benchmark, entity_db, verbose=False):
-    aps = []
-    p_at_rs = []
-    hit_rate_at_1 = []
-    hit_rate_at_3 = []
-    hit_rate_at_5 = []
-    hit_rate_at_10 = []
-    rrs = []
-    for entity_id in benchmark:
-        result_types = scoring_function(entity_id)
-        if result_types is None or len(result_types) == 0 or result_types[0] is None:
-            result_types = ([None])
-        elif type(result_types[0]) is tuple:
-            result_types = [r[1] for r in result_types]  # Get only the type ids, not the scores
-        ap = Metrics.average_precision(result_types, benchmark[entity_id])
-        p_at_r = Metrics.precision_at_k(result_types, benchmark[entity_id], len(benchmark[entity_id]))
-        entity_name = entity_db.get_entity_name(entity_id)
-        gt_entities = ", ".join([f"{entity_db.get_entity_name(t)} ({t})" for t in benchmark[entity_id]])
-        predicted_entities = ", ".join([f"{entity_db.get_entity_name(t)} ({t})" for t in result_types[:6]]) + "..."
-        if verbose:
-            print(f"Average precision for \"{entity_name}\" ({entity_id}): {ap:.2f}.\n"
-                  f"\tGround truth: {gt_entities}\n"
-                  f"\tprediction: {predicted_entities}")
+def evaluate_method(scoring_function, benchmark, entity_db, verbose=False):
+    metrics = [MetricName.HIT_RATE_AT_1, MetricName.HIT_RATE_AT_3, MetricName.HIT_RATE_AT_5,
+               MetricName.HIT_RATE_AT_10, MetricName.MRR, MetricName.AVERAGE_PRECISION, MetricName.PRECISION_AT_R]
 
-        aps.append(ap)
-        p_at_rs.append(p_at_r)
-        hit_rate_at_1.append(Metrics.hit_rate_at_k(result_types, benchmark[entity_id], 1))
-        hit_rate_at_3.append(Metrics.hit_rate_at_k(result_types, benchmark[entity_id], 3))
-        hit_rate_at_5.append(Metrics.hit_rate_at_k(result_types, benchmark[entity_id], 5))
-        hit_rate_at_10.append(Metrics.hit_rate_at_k(result_types, benchmark[entity_id], 10))
-        rrs.append(Metrics.mrr(result_types, benchmark[entity_id]))
+    evaluation_results = evaluate(scoring_function, benchmark, metrics, entity_db, verbose)
 
-    mean_ap = sum(aps) / len(aps)
-    mean_p_at_r = sum(p_at_rs) / len(p_at_rs)
-    mean_hit_rate_at_1 = sum(hit_rate_at_1) / len(hit_rate_at_1)
-    mean_hit_rate_at_3 = sum(hit_rate_at_3) / len(hit_rate_at_3)
-    mean_hit_rate_at_5 = sum(hit_rate_at_5) / len(hit_rate_at_5)
-    mean_hit_rate_at_10 = sum(hit_rate_at_10) / len(hit_rate_at_10)
-    mrr = sum(rrs) / len(rrs)
-    print(f"MAP: {mean_ap:.2f}")
-    print(f"MP @ R: {mean_p_at_r:.2f}")
-    print(f"Hit rate at 1: {mean_hit_rate_at_1:.2f}")
-    print(f"Hit rate at 3: {mean_hit_rate_at_3:.2f}")
-    print(f"Hit rate at 5: {mean_hit_rate_at_5:.2f}")
-    print(f"Hit rate at 10: {mean_hit_rate_at_10:.2f}")
-    print(f"MRR: {mrr:.2f}")
+    for metric in evaluation_results:
+        print(f"{metric.value}: {evaluation_results[metric]:.2f}")
 
 
 def main(args):
@@ -98,10 +61,12 @@ def main(args):
                                 dropout=0.2,
                                 activation="sigmoid")
             X, y = nn.create_dataset(args.training_file)
-            X_val, y_val = None, None
+            validation_benchmark, X_val, y_val, entity_index = None, None, None, None
             if args.validation_file:
-                X_val, y_val = nn.create_dataset(args.validation_file)
-            nn.train(X, y, X_val=X_val, y_val=y_val)
+                validation_benchmark = BenchmarkReader().read_benchmark(args.validation_file)
+                X_val, y_val, entity_index = nn.create_dataset(args.validation_file, return_entity_index=True)
+
+            nn.train(X, y, X_val=X_val, y_val=y_val, entity_index=entity_index, val_benchmark=validation_benchmark)
         predict_methods.append((nn.predict, ModelNames.NEURAL_NETWORK.value))
         if args.save_model:
             nn.save_model(args.save_model)
@@ -119,7 +84,7 @@ def main(args):
             print(f"***** Evaluating {model_name} *****")
             if model_name == ModelNames.ORACLE.value:
                 oracle.set_benchmark(benchmark)
-            evaluate(predict_method, benchmark, entity_db, verbose=args.verbose)
+            evaluate_method(predict_method, benchmark, entity_db, verbose=args.verbose)
 
 
 if __name__ == "__main__":

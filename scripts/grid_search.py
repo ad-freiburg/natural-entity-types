@@ -8,23 +8,9 @@ sys.path.append(".")
 from src.models.entity_database import EntityDatabase
 from src.type_computation.neural_network import NeuralTypePredictor
 from src.evaluation.benchmark_reader import BenchmarkReader
-from src.evaluation.metrics import Metrics
+from src.evaluation.metrics import MetricName
 from src.utils import log
-
-
-def evaluate(scoring_function, benchmark):
-    hit_rate_at_1 = []
-    for entity_id in benchmark:
-        result_types = scoring_function(entity_id)
-        if result_types is None or len(result_types) == 0 or result_types[0] is None:
-            result_types = ([None])
-        elif type(result_types[0]) is tuple:
-            result_types = [r[1] for r in result_types]  # Get only the type ids, not the scores
-        hit_rate_at_1.append(Metrics.hit_rate_at_k(result_types, benchmark[entity_id], 1))
-
-    mean_hit_rate_at_1 = sum(hit_rate_at_1) / len(hit_rate_at_1)
-
-    return mean_hit_rate_at_1
+from src.evaluation.evaluation import evaluate
 
 def main(args):
     entity_db = EntityDatabase()
@@ -33,18 +19,6 @@ def main(args):
     entity_db.load_entity_to_name()
     entity_db.load_entity_to_description()
     nn = NeuralTypePredictor(entity_db)
-    validation_benchmark = BenchmarkReader().read_benchmark(args.validation_file)
-
-    parameters = {
-        "hidden_layer_size": [256, 512, 1024],
-        "activation": ["relu", "tanh", "sigmoid"],
-        "hidden_layers": [1, 2],
-        "dropout": [0.1, 0.2, 0.3, 0.4],
-        "learning_rate_init": [0.001, 0.01, 0.1],
-        "batch_size": [16, 32, 64],
-        "optimizer": ["SGD"],
-        "momentum": [0, 0.3, 0.6]
-    }
 
     parameters = {
         "hidden_layer_size": [256, 512],
@@ -52,27 +26,16 @@ def main(args):
         "hidden_layers": [1, 2],
         "dropout": [0.2, 0.4, 0.6],
         "learning_rate_init": [0.001, 0.01, 0.1],
-        "batch_size": [16, 32],
+        "batch_size": [16, 32, 64],
         "optimizer": ["SGD"],
         "momentum": [0, 0.3, 0.6]
-    }
-
-
-    parameters = {
-        "hidden_layer_size": [512],
-        "activation": ["sigmoid"],
-        "hidden_layers": [1],
-        "dropout": [0.2],
-        "learning_rate_init": [0.01, 0.1],
-        "batch_size": [16,],
-        "optimizer": ["SGD"],
-        "momentum": [0, 0.3]
     }
 
     logger.info("Initializing Neural Network ...")
 
     X, y = nn.create_dataset(args.training_file)
-    X_val, y_val = nn.create_dataset(args.validation_file)
+    validation_benchmark = BenchmarkReader().read_benchmark(args.validation_file)
+    X_val, y_val, entity_index = nn.create_dataset(args.validation_file, return_entity_index=True)
 
     # Generate parameter combinations as dictionaries
     keys = parameters.keys()
@@ -86,9 +49,19 @@ def main(args):
                             hidden_layers=params["hidden_layers"],
                             dropout=params["dropout"],
                             activation=params["activation"])
-        nn.train(X, y, learning_rate=params["learning_rate_init"], batch_size=params["batch_size"], optimizer=params["optimizer"], momentum=params["momentum"], X_val=X_val, y_val=y_val)
+        nn.train(X,
+                 y,
+                 learning_rate=params["learning_rate_init"],
+                 batch_size=params["batch_size"],
+                 optimizer=params["optimizer"],
+                 momentum=params["momentum"],
+                 X_val=X_val,
+                 y_val=y_val,
+                 entity_index=entity_index,
+                 val_benchmark=validation_benchmark)
 
-        hit_rate = evaluate(nn.predict, validation_benchmark)
+        evaluation_results = evaluate(nn.predict, validation_benchmark, [MetricName.HIT_RATE_AT_1])
+        hit_rate = evaluation_results[MetricName.HIT_RATE_AT_1]
         if hit_rate > best_hit_rate:
             nn.save_model(args.save_model)
             best_hit_rate = hit_rate

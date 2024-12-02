@@ -6,7 +6,8 @@ import math
 import logging
 
 from src.evaluation.benchmark_reader import BenchmarkReader
-from src.evaluation.metrics import Metrics
+from src.evaluation.evaluation import evaluate_batch_prediction
+from src.evaluation.metrics import Metrics, MetricName
 from src.models.entity_database import EntityDatabase
 from src.type_computation.feature_scores import FeatureScores
 
@@ -162,7 +163,7 @@ class NeuralTypePredictor:
         features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
         return torch.cat((torch.Tensor(features).unsqueeze(0), desc_embedding, type_name_embedding), dim=1)
 
-    def create_dataset(self, filename: str, cols_to_shuffle: Optional[Tuple[int, int]] = None):
+    def create_dataset(self, filename: str, cols_to_shuffle: Optional[Tuple[int, int]] = None, return_entity_index=False):
         """
         Create a dataset from the given file with one row per entity.
         Returns a matrix X with one row per features of an entity - candidate
@@ -172,10 +173,11 @@ class NeuralTypePredictor:
         The first column index is inclusive, the second one exclusive.
         """
         logger.info(f"Creating dataset from {filename}...")
-        training_dataset = BenchmarkReader.read_benchmark(filename)
+        dataset = BenchmarkReader.read_benchmark(filename)
         X = []
         y = []
-        for i, (e, gt_types) in enumerate(training_dataset.items()):
+        entity_index = {}
+        for i, (e, gt_types) in enumerate(dataset.items()):
             # Add a row for each entity - candidate type pair.
             candidate_types = self.entity_db.get_entity_types_with_path_length(e)
             desc = self.entity_db.get_entity_description(e)
@@ -185,15 +187,21 @@ class NeuralTypePredictor:
                 sample_vector = self.create_feature_vector(t, path_length, desc, desc_embedding, entity_name)
                 X.append(sample_vector)
                 y.append(int(t in gt_types))
-            print(f"\rAdded sample {i + 1}/{len(training_dataset)} to dataset.", end="")
+                if e not in entity_index:
+                    entity_index[e] = []
+                entity_index[e].append((len(y) - 1, t))
+            print(f"\rAdded sample {i + 1}/{len(dataset)} to dataset.", end="")
         print()
         X = torch.cat(X, dim=0)
         # If cols_to_shuffle is set, shuffle the values in the specified column
         if cols_to_shuffle is not None:
+            logger.info(f"Shuffling columns {cols_to_shuffle[0]} to {cols_to_shuffle[1]} ...")
             shuffled_cols = X[torch.randperm(X.size(0)), cols_to_shuffle[0]:cols_to_shuffle[1]]
             X[:, cols_to_shuffle[0]:cols_to_shuffle[1]] = shuffled_cols
         logger.info(f"Shape of X: {X.shape}")
         y = torch.Tensor(y)
+        if return_entity_index:
+            return X, y, entity_index
         return X, y
 
     def train(self,
@@ -206,19 +214,21 @@ class NeuralTypePredictor:
               momentum: float = 0,
               patience: int = 5,
               X_val: torch.Tensor = None,
-              y_val: torch.Tensor = None):
+              y_val: torch.Tensor = None,
+              entity_index: dict = None,
+              val_benchmark: dict = None):
         """
         Train the neural network.
         """
         # Initialize variables for Early Stopping
-        best_val_loss = float("inf")
+        best_val_hit_rate = 0
         patience_counter = 0
         best_model_state = None
-        if X_val is not None and y_val is not None:
+        if X_val is not None and y_val is not None and entity_index is not None:
             y_val = y_val.unsqueeze(-1)
             X_val, y_val = X_val.to(self.device), y_val.to(self.device)
-        elif X_val is not None or y_val is not None:
-            logger.warning(f"Both X_val and y_val must be provided for validation.")
+        elif X_val is not None or y_val is not None or entity_index is not None:
+            logger.warning(f"X_val, y_val and entity_index must be provided for validation.")
 
         # Move the model and training data to the device (CPU or GPU)
         self.model = self.model.to(self.device)
@@ -241,16 +251,16 @@ class NeuralTypePredictor:
                 loss.backward()
                 optimizer.step()
 
-            if X_val is not None and y_val is not None:
+            if X_val is not None and y_val is not None and entity_index is not None:
                 self.model.eval()
                 with torch.no_grad():
                     y_val_pred = self.model(X_val)
-
-                    val_loss = loss_function(y_val_pred, y_val).item()
+                    evaluation_results = evaluate_batch_prediction(y_val_pred, val_benchmark, entity_index, [MetricName.HIT_RATE_AT_1])
+                    hit_rate = evaluation_results[MetricName.HIT_RATE_AT_1]
 
                 # Check for improvement
-                if val_loss < best_val_loss:
-                    best_val_loss = val_loss
+                if hit_rate > best_val_hit_rate:
+                    best_val_hit_rate = hit_rate
                     patience_counter = 0  # Reset patience counter
                     # Store the best model
                     best_model_state = self.model.state_dict()
@@ -288,34 +298,16 @@ class NeuralTypePredictor:
         sorted_indices = sorted_indices.flip([0])
         return sorted([(prediction[i], candidate_types[i][0]) for i in sorted_indices], key=lambda x: x[0], reverse=True)
 
+    def predict_batch(self, X):
+        """
+        Predict the types for a batch of entities.
+        """
+        return self.model(X)
+
     def evaluate_shuffled(self, filename: str, cols_to_shuffle: Tuple[int, int]):
-        logger.info(f"Creating dataset from {filename}...")
         benchmark = BenchmarkReader.read_benchmark(filename)
-        X = []
-        y = []
-        entity_index = {}
-        for i, (e, gt_types) in enumerate(benchmark.items()):
-            # Add a row for each entity - candidate type pair.
-            candidate_types = self.entity_db.get_entity_types_with_path_length(e)
-            desc = self.entity_db.get_entity_description(e)
-            desc_embedding = self.get_text_embedding(desc)
-            entity_name = self.entity_db.get_entity_name(e)
-            for t, path_length in candidate_types.items():
-                sample_vector = self.create_feature_vector(t, path_length, desc, desc_embedding, entity_name)
-                X.append(sample_vector)
-                y.append(int(t in gt_types))
-                if e not in entity_index:
-                    entity_index[e] = []
-                entity_index[e].append((len(y) - 1, t))
-            print(f"\rAdded sample {i + 1}/{len(benchmark)} to dataset.", end="")
-        print()
-        X = torch.cat(X, dim=0)
-        # If cols_to_shuffle is set, shuffle the values in the specified column
-        if cols_to_shuffle is not None:
-            logger.info(f"Shuffling columns {cols_to_shuffle[0]} to {cols_to_shuffle[1]} ...")
-            shuffled_cols = X[torch.randperm(X.size(0)), cols_to_shuffle[0]:cols_to_shuffle[1]]
-            X[:, cols_to_shuffle[0]:cols_to_shuffle[1]] = shuffled_cols
-        logger.info(f"Shape of X: {X.shape}")
+
+        X, y, entity_index = self.create_dataset(filename, cols_to_shuffle, True)
 
         aps = []
         p_at_1s = []

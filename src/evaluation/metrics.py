@@ -1,10 +1,14 @@
-"""
-Copyright 2019, University of Freiburg
-Chair of Algorithms and Data Structures.
-Claudius Korzen <korzen@cs.uni-freiburg.de>
-Patrick Brosi <brosi@cs.uni-freiburg.de>
-Natalie Prange <prange@cs.uni-freiburg.de>
-"""
+from enum import Enum
+
+
+class MetricName(Enum):
+    HIT_RATE_AT_1 = "Hit Rate @ 1"
+    HIT_RATE_AT_3 = "Hit Rate @ 3"
+    HIT_RATE_AT_5 = "Hit Rate @ 5"
+    HIT_RATE_AT_10 = "Hit Rate @ 10"
+    MRR = "MRR"
+    AVERAGE_PRECISION = "MAP"
+    PRECISION_AT_R = "MP@R"
 
 
 class Metrics:
