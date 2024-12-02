@@ -11,9 +11,7 @@ from src.type_computation.model_names import ModelNames
 from src.type_computation.neural_network import NeuralTypePredictor
 
 
-def evaluate(scoring_function, benchmark, entity_db, output_file=None, verbose=False):
-    if output_file:
-        output_file = open(output_file, "w", encoding="utf8")
+def evaluate(scoring_function, benchmark, entity_db, verbose=False):
     aps = []
     p_at_rs = []
     hit_rate_at_1 = []
@@ -44,10 +42,7 @@ def evaluate(scoring_function, benchmark, entity_db, output_file=None, verbose=F
         hit_rate_at_5.append(Metrics.hit_rate_at_k(result_types, benchmark[entity_id], 5))
         hit_rate_at_10.append(Metrics.hit_rate_at_k(result_types, benchmark[entity_id], 10))
         rrs.append(Metrics.mrr(result_types, benchmark[entity_id]))
-        if output_file:
-            output_file.write(f"Average precision for \"{entity_name}\" ({entity_id}): {ap:.2f}.\n"
-                              f"\tGround truth: {gt_entities}\n"
-                              f"\tprediction: {predicted_entities}\n")
+
     mean_ap = sum(aps) / len(aps)
     mean_p_at_r = sum(p_at_rs) / len(p_at_rs)
     mean_hit_rate_at_1 = sum(hit_rate_at_1) / len(hit_rate_at_1)
@@ -62,11 +57,6 @@ def evaluate(scoring_function, benchmark, entity_db, output_file=None, verbose=F
     print(f"Hit rate at 5: {mean_hit_rate_at_5:.2f}")
     print(f"Hit rate at 10: {mean_hit_rate_at_10:.2f}")
     print(f"MRR: {mrr:.2f}")
-
-    if output_file:
-        output_file.write(f"MAP: {mean_ap:.2f}\n")
-        output_file.write(f"MP @ R: {mean_p_at_r:.2f}\n")
-        output_file.close()
 
 
 def main(args):
@@ -126,7 +116,7 @@ def main(args):
             print(f"***** Evaluating {model_name} *****")
             if model_name == ModelNames.ORACLE.value:
                 oracle.set_benchmark(benchmark)
-            evaluate(predict_method, benchmark, entity_db, args.output_file, verbose=args.verbose)
+            evaluate(predict_method, benchmark, entity_db, verbose=args.verbose)
 
 
 if __name__ == "__main__":
@@ -141,8 +131,6 @@ if __name__ == "__main__":
                         help="File that contains the training dataset.")
     parser.add_argument("-val", "--validation_file", type=str,
                         help="File containing the validation dataset. Relevant for the neural network model only.")
-    parser.add_argument("-o", "--output_file", type=str,
-                        help="File to which to write the evaluation results to.")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Print details about each evaluated benchmark entity.")
 
