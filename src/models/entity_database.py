@@ -96,12 +96,16 @@ class EntityDatabase:
             self.prominent_types = EntityDatabaseReader.read_prominent_types_mapping()
 
     def get_entity_types(self, entity_id: str) -> Set[str]:
-        if entity_id not in self.instance_of_mapping:
-            return set()
         all_types = set()
         # Make a copy of the set, otherwise calling pop on the type_set will delete the
         # element from the entry in the instance_of_mapping as well.
-        type_set = set(self.instance_of_mapping[entity_id])
+        type_set = set()
+        if entity_id in self.instance_of_mapping:
+            type_set = set(self.instance_of_mapping[entity_id])
+        elif entity_id in self.subclass_of_mapping:
+            type_set = type_set.union(set(self.subclass_of_mapping[entity_id]))
+        if not type_set:
+            return set()
         all_types.update(type_set)
         while type_set:
             t = type_set.pop()
@@ -115,12 +119,16 @@ class EntityDatabase:
         return all_types
 
     def get_entity_types_with_path_length(self, entity_id: str) -> Dict[str, int]:
-        if entity_id not in self.instance_of_mapping:
-            return {}
         all_types = {}
+        type_set = set()
         # Make a copy of the set, otherwise calling pop on the type_set will delete the
         # element from the entry in the instance_of_mapping as well.
-        type_set = self.instance_of_mapping[entity_id]
+        if entity_id in self.instance_of_mapping:
+            type_set = set(self.instance_of_mapping[entity_id])
+        elif entity_id in self.subclass_of_mapping:
+            type_set = type_set.union(set(self.subclass_of_mapping[entity_id]))
+        if not type_set:
+            return {}
 
         for t in type_set:
             all_types[t] = 1
@@ -141,6 +149,28 @@ class EntityDatabase:
                 type_set = next_type_set
                 curr_path_length += 1
         return all_types
+
+    def get_type_depth(self, type_id: str) -> int:
+        """
+        Get depth of a type in the subclass hierarchy, i.e. the length of the
+        shortest subclass-of path to the root type entity (Q35120)
+        """
+        if type_id == "Q35120":
+            return 0
+        if type_id not in self.subclass_of_mapping:
+            return -1
+        type_set = self.subclass_of_mapping[type_id]
+        depth = 1
+        while type_set:
+            if "Q35120" in type_set:
+                return depth
+            new_types = set()
+            for t in type_set:
+                if t in self.subclass_of_mapping:
+                    new_types.update(self.subclass_of_mapping[t])
+            type_set = new_types
+            depth += 1
+        return -1
 
     def get_instance_of_types(self, entity_id: str) -> Set[str]:
         if entity_id in self.instance_of_mapping:
