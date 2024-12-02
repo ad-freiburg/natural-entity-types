@@ -2,14 +2,12 @@ import argparse
 import sys
 from itertools import product
 
-from src.evaluation.benchmark_reader import BenchmarkReader
-from src.evaluation.metrics import Metrics
-
 sys.path.append(".")
 
 from src.models.entity_database import EntityDatabase
 from src.type_computation.neural_network import NeuralTypePredictor
-
+from src.evaluation.benchmark_reader import BenchmarkReader
+from src.evaluation.metrics import Metrics
 from src.utils import log
 
 
