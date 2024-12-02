@@ -1,4 +1,4 @@
-from typing import Iterator, Tuple
+from typing import Iterator, Tuple, Optional
 import torch
 import spacy
 import random
@@ -6,6 +6,7 @@ import math
 import logging
 
 from src.evaluation.benchmark_reader import BenchmarkReader
+from src.evaluation.metrics import Metrics
 from src.models.entity_database import EntityDatabase
 from src.type_computation.feature_scores import FeatureScores
 
@@ -65,19 +66,20 @@ class NeuralTypePredictor:
 
         self.feature_scores = FeatureScores(self.entity_db)
         self.feature_scores.precompute_normalized_popularities()
-        self.feature_scores.precompute_normalized_idfs(medium=7)
-        self.feature_scores.precompute_normalized_variances(medium=0.8)
+        self.feature_scores.precompute_normalized_idfs()
+        self.feature_scores.precompute_normalized_variances()
 
         logger.info("Loading spacy model...")
         self.nlp = spacy.load("en_core_web_lg")
         self.embedding_size = 300
+        self.n_features = 8 + self.embedding_size*2
 
         self.model = None
 
         self.type_embedding_cache = {}
 
-    def initialize_model(self, n_features, hidden_units, dropout):
-        self.model = NeuralNet(n_features, hidden_units, 1, dropout)
+    def initialize_model(self, hidden_units, dropout):
+        self.model = NeuralNet(self.n_features, hidden_units, 1, dropout)
 
     def get_text_embedding(self, string):
         if not string:
@@ -104,10 +106,19 @@ class NeuralTypePredictor:
         len_type_name = len(type_name) if type_name else 0
         len_desc = len(desc) if desc else 0
         type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
+        # type_depth = self.entity_db.get_type_depth(type_id)
         features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
         return torch.cat((torch.Tensor(features).unsqueeze(0), desc_embedding, type_name_embedding), dim=1)
 
-    def create_dataset(self, filename):
+    def create_dataset(self, filename: str, cols_to_shuffle: Optional[Tuple[int, int]] = None):
+        """
+        Create a dataset from the given file with one row per entity.
+        Returns a matrix X with one row per features of an entity - candidate
+        type pair and a vector y with the labels.
+        cols_to_shuffle: Tuple of two integers representing the range of
+        columns to shuffle in order to evaluate the effect of a feature (range).
+        The first column index is inclusive, the second one exclusive.
+        """
         logger.info(f"Creating dataset from {filename}...")
         training_dataset = BenchmarkReader.read_benchmark(filename)
         X = []
@@ -125,6 +136,10 @@ class NeuralTypePredictor:
             print(f"\rAdded sample {i + 1}/{len(training_dataset)} to dataset.", end="")
         print()
         X = torch.cat(X, dim=0)
+        # If cols_to_shuffle is set, shuffle the values in the specified column
+        if cols_to_shuffle is not None:
+            shuffled_cols = X[torch.randperm(X.size(0)), cols_to_shuffle[0]:cols_to_shuffle[1]]
+            X[:, cols_to_shuffle[0]:cols_to_shuffle[1]] = shuffled_cols
         logger.info(f"Shape of X: {X.shape}")
         y = torch.Tensor(y)
         return X, y
@@ -207,6 +222,64 @@ class NeuralTypePredictor:
         sorted_indices = torch.argsort(prediction.view(-1))
         sorted_indices = sorted_indices.flip([0])
         return sorted([(prediction[i], candidate_types[i][0]) for i in sorted_indices], key=lambda x: x[0], reverse=True)
+
+    def evaluate_shuffled(self, filename: str, cols_to_shuffle: Tuple[int, int]):
+        logger.info(f"Creating dataset from {filename}...")
+        benchmark = BenchmarkReader.read_benchmark(filename)
+        X = []
+        y = []
+        entity_index = {}
+        for i, (e, gt_types) in enumerate(benchmark.items()):
+            # Add a row for each entity - candidate type pair.
+            candidate_types = self.entity_db.get_entity_types_with_path_length(e)
+            desc = self.entity_db.get_entity_description(e)
+            desc_embedding = self.get_text_embedding(desc)
+            entity_name = self.entity_db.get_entity_name(e)
+            for t, path_length in candidate_types.items():
+                sample_vector = self.create_feature_vector(t, path_length, desc, desc_embedding, entity_name)
+                X.append(sample_vector)
+                y.append(int(t in gt_types))
+                if e not in entity_index:
+                    entity_index[e] = []
+                entity_index[e].append((len(y) - 1, t))
+            print(f"\rAdded sample {i + 1}/{len(benchmark)} to dataset.", end="")
+        print()
+        X = torch.cat(X, dim=0)
+        # If cols_to_shuffle is set, shuffle the values in the specified column
+        if cols_to_shuffle is not None:
+            logger.info(f"Shuffling columns {cols_to_shuffle[0]} to {cols_to_shuffle[1]} ...")
+            shuffled_cols = X[torch.randperm(X.size(0)), cols_to_shuffle[0]:cols_to_shuffle[1]]
+            X[:, cols_to_shuffle[0]:cols_to_shuffle[1]] = shuffled_cols
+        logger.info(f"Shape of X: {X.shape}")
+
+        aps = []
+        p_at_1s = []
+        p_at_rs = []
+        for entity_id in benchmark:
+            # Get relevant submatrix from X
+            result_types = []
+            if entity_id in entity_index:
+                indices = [idx for idx, _ in entity_index[entity_id]]
+                X_entity = X[indices]
+                # Get predictions for the candidate types of the entity
+                prediction = self.model(X_entity)
+                sorted_indices = torch.argsort(prediction.view(-1))
+                sorted_indices = sorted_indices.flip([0])
+                result_types = sorted([(prediction[i], entity_index[entity_id][i][1]) for i in sorted_indices], key=lambda x: x[0],
+                              reverse=True)
+                result_types = [r[1] for r in result_types]  # Get only the type ids, not the scores
+            ap = Metrics.average_precision(result_types, benchmark[entity_id])
+            p_at_1 = Metrics.precision_at_k(result_types, benchmark[entity_id], 1)
+            p_at_r = Metrics.precision_at_k(result_types, benchmark[entity_id], len(benchmark[entity_id]))
+            aps.append(ap)
+            p_at_1s.append(p_at_1)
+            p_at_rs.append(p_at_r)
+        mean_ap = sum(aps) / len(aps)
+        mean_p_at_1 = sum(p_at_1s) / len(p_at_1s)
+        mean_p_at_r = sum(p_at_rs) / len(p_at_rs)
+        print(f"MAP: {mean_ap:.2f}")
+        print(f"MP @ 1: {mean_p_at_1:.2f}")
+        print(f"MP @ R: {mean_p_at_r:.2f}")
 
     def save_model(self, model_path):
         """

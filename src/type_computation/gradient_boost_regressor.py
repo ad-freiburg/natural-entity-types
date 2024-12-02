@@ -24,8 +24,8 @@ class GradientBoostRegressor:
 
         self.feature_scores = FeatureScores(self.entity_db)
         self.feature_scores.precompute_normalized_popularities()
-        self.feature_scores.precompute_normalized_idfs(medium=7)
-        self.feature_scores.precompute_normalized_variances(medium=0.8)
+        self.feature_scores.precompute_normalized_idfs()
+        self.feature_scores.precompute_normalized_variances()
 
         self.num_estimators = 300
         self.model = GradientBoostingRegressor(loss='squared_error',

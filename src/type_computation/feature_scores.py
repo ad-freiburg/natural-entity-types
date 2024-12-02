@@ -27,14 +27,28 @@ class FeatureScores:
         self.norm_idfs = None
         self.norm_popularities = None
 
-    def precompute_normalized_variances(self, k=5, medium=None, minimum=None, maximum=None,
-                                        plot_name=None):
-        self.norm_variances = self.normalize_scores(self.entity_db.predicate_variances.items(), k, medium, minimum, maximum, plot_name)
+    def precompute_normalized_variances(self):
+        minimum = 1000
+        maximum = 0
+        for e, variance in self.entity_db.predicate_variances.items():
+            if variance < minimum:
+                minimum = variance
+            if variance > maximum:
+                maximum = variance
+        self.norm_variances = {e: FeatureScores.min_max_normalize(variance, minimum, maximum) for e, variance in self.entity_db.predicate_variances.items()}
 
-    def precompute_normalized_idfs(self, k=5, medium=None, minimum=None, maximum=None, plot_name=None):
-        self.idf_scores = [(t, math.log(self.n_entities / self.entity_db.get_type_frequency(t)))
-                      for t in self.entity_db.type_frequency.keys()]
-        self.norm_idfs = self.normalize_scores(self.idf_scores, k, medium, minimum, maximum, plot_name)
+    def precompute_normalized_idfs(self):
+        minimum = 100000000
+        maximum = 0
+        log_freqs = {}
+        for t, frequency in self.entity_db.type_frequency.items():
+            log_freq = math.log(self.n_entities / frequency)
+            log_freqs[t] = log_freq
+            if log_freq < minimum:
+                minimum = log_freq
+            if log_freq > maximum:
+                maximum = log_freq
+        self.norm_idfs = {t: FeatureScores.min_max_normalize(freq, minimum, maximum) for t, freq in log_freqs.items()}
 
     def precompute_idfs(self):
         self.idf_scores = {t: math.log(self.n_entities / self.entity_db.get_type_frequency(t))
@@ -130,12 +144,12 @@ class FeatureScores:
                 if s[1] >= medium:
                     half_sum_idx = i
                     break
-        print(f"Maximum normalized value is {medium} at index {half_sum_idx} of {len(scores)}")
+        logger.debug(f"Maximum normalized value is {medium} at index {half_sum_idx} of {len(scores)}")
 
         normalized_scores = {}
         maximum = max(scores[-1][1], medium + 1) if not maximum else maximum
         minimum = min(scores[0][1], max(medium - 1, 0)) if not minimum else minimum
-        print(f"Normalization maximum: {maximum}, minimum: {minimum}")
+        logger.debug(f"Normalization maximum: {maximum}, minimum: {minimum}")
         for i, s in enumerate(scores):
             normalized_scores[s[0]] = FeatureScores.normalize(s[1], medium, min=minimum, max=maximum, k=k)
         if plot_name:
@@ -148,5 +162,5 @@ class FeatureScores:
             plt.ylabel('Normalized score')
             # Save the plot to a PDF file
             plt.savefig(f'{plot_name}.pdf')
-            print(f"half sum of all scores is at value: {medium} at index {half_sum_idx + 1} of {len(scores)}")
+            logger.debug(f"half sum of all scores is at value: {medium} at index {half_sum_idx + 1} of {len(scores)}")
         return normalized_scores

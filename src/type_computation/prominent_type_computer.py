@@ -25,9 +25,8 @@ class ProminentTypeComputer:
         self.n_entities = len(self.entity_db.entity_to_name)
 
         self.feature_scores = FeatureScores(self.entity_db)
-        self.feature_scores.precompute_normalized_variances(medium=0.8,
-                                                            plot_name="normlized_variances")
-        self.feature_scores.precompute_normalized_idfs(medium=7, plot_name="normalized_idf_scores")
+        self.feature_scores.precompute_normalized_variances()
+        self.feature_scores.precompute_normalized_idfs()
         self.feature_scores.precompute_normalized_popularities()
 
     def compute_entity_score(self, entity_id, verbose=False):
