@@ -3,7 +3,6 @@ import argparse
 
 sys.path.append(".")
 
-from src import settings
 from src.utils import log
 from src.evaluation.benchmark_reader import BenchmarkReader
 from src.evaluation.metrics import Metrics
@@ -16,8 +15,12 @@ def evaluate(scoring_function, benchmark, entity_db, output_file=None, verbose=F
     if output_file:
         output_file = open(output_file, "w", encoding="utf8")
     aps = []
-    p_at_1s = []
     p_at_rs = []
+    hit_rate_at_1 = []
+    hit_rate_at_3 = []
+    hit_rate_at_5 = []
+    hit_rate_at_10 = []
+    rrs = []
     for entity_id in benchmark:
         result_types = scoring_function(entity_id)
         if result_types is None or len(result_types) == 0 or result_types[0] is None:
@@ -25,7 +28,6 @@ def evaluate(scoring_function, benchmark, entity_db, output_file=None, verbose=F
         elif type(result_types[0]) is tuple:
             result_types = [r[1] for r in result_types]  # Get only the type ids, not the scores
         ap = Metrics.average_precision(result_types, benchmark[entity_id])
-        p_at_1 = Metrics.precision_at_k(result_types, benchmark[entity_id], 1)
         p_at_r = Metrics.precision_at_k(result_types, benchmark[entity_id], len(benchmark[entity_id]))
         entity_name = entity_db.get_entity_name(entity_id)
         gt_entities = ", ".join([f"{entity_db.get_entity_name(t)} ({t})" for t in benchmark[entity_id]])
@@ -34,23 +36,35 @@ def evaluate(scoring_function, benchmark, entity_db, output_file=None, verbose=F
             print(f"Average precision for \"{entity_name}\" ({entity_id}): {ap:.2f}.\n"
                   f"\tGround truth: {gt_entities}\n"
                   f"\tprediction: {predicted_entities}")
+
         aps.append(ap)
-        p_at_1s.append(p_at_1)
         p_at_rs.append(p_at_r)
+        hit_rate_at_1.append(Metrics.hit_rate_at_k(result_types, benchmark[entity_id], 1))
+        hit_rate_at_3.append(Metrics.hit_rate_at_k(result_types, benchmark[entity_id], 3))
+        hit_rate_at_5.append(Metrics.hit_rate_at_k(result_types, benchmark[entity_id], 5))
+        hit_rate_at_10.append(Metrics.hit_rate_at_k(result_types, benchmark[entity_id], 10))
+        rrs.append(Metrics.mrr(result_types, benchmark[entity_id]))
         if output_file:
             output_file.write(f"Average precision for \"{entity_name}\" ({entity_id}): {ap:.2f}.\n"
                               f"\tGround truth: {gt_entities}\n"
                               f"\tprediction: {predicted_entities}\n")
     mean_ap = sum(aps) / len(aps)
-    mean_p_at_1 = sum(p_at_1s) / len(p_at_1s)
     mean_p_at_r = sum(p_at_rs) / len(p_at_rs)
+    mean_hit_rate_at_1 = sum(hit_rate_at_1) / len(hit_rate_at_1)
+    mean_hit_rate_at_3 = sum(hit_rate_at_3) / len(hit_rate_at_3)
+    mean_hit_rate_at_5 = sum(hit_rate_at_5) / len(hit_rate_at_5)
+    mean_hit_rate_at_10 = sum(hit_rate_at_10) / len(hit_rate_at_10)
+    mrr = sum(rrs) / len(rrs)
     print(f"MAP: {mean_ap:.2f}")
-    print(f"MP @ 1: {mean_p_at_1:.2f}")
     print(f"MP @ R: {mean_p_at_r:.2f}")
+    print(f"Hit rate at 1: {mean_hit_rate_at_1:.2f}")
+    print(f"Hit rate at 3: {mean_hit_rate_at_3:.2f}")
+    print(f"Hit rate at 5: {mean_hit_rate_at_5:.2f}")
+    print(f"Hit rate at 10: {mean_hit_rate_at_10:.2f}")
+    print(f"MRR: {mrr:.2f}")
 
     if output_file:
         output_file.write(f"MAP: {mean_ap:.2f}\n")
-        output_file.write(f"MP @ 1: {mean_p_at_1:.2f}\n")
         output_file.write(f"MP @ R: {mean_p_at_r:.2f}\n")
         output_file.close()
 
@@ -89,9 +103,12 @@ def main(args):
         if args.load_model:
             nn.load_model(args.load_model)
         else:
-            nn.initialize_model(8 + 300*2, 512, 0)
+            nn.initialize_model(512, 0.2)
             X, y = nn.create_dataset(args.training_file)
-            nn.train(X, y, val=args.validation_file)
+            X_val, y_val = None, None
+            if args.validation_file:
+                X_val, y_val = nn.create_dataset(args.validation_file)
+            nn.train(X, y, X_val=X_val, y_val=y_val)
         predict_methods.append((nn.predict, ModelNames.NEURAL_NETWORK.value))
         if args.save_model:
             nn.save_model(args.save_model)

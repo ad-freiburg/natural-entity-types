@@ -54,3 +54,18 @@ class Metrics:
             if result_ids[i] in relevant_ids:
                 sum_ap += Metrics.precision_at_k(result_ids, relevant_ids, i + 1)
         return sum_ap / len(relevant_ids)
+
+    @staticmethod
+    def hit_rate_at_k(result_ids, relevant_ids, k):
+        for i in range(min(k, len(result_ids))):
+            if result_ids[i] in relevant_ids:
+                return 1
+        return 0
+
+    @staticmethod
+    def mrr(result_ids, relevant_ids):
+        # Compute the mean reciprocal rank (MRR) for the given list of result ids
+        for i in range(len(result_ids)):
+            if result_ids[i] in relevant_ids:
+                return 1 / (i + 1)
+        return 0
