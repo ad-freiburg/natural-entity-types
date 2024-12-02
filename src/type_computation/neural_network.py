@@ -78,6 +78,9 @@ class NeuralTypePredictor:
 
         self.type_embedding_cache = {}
 
+        self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
+        logger.info(f"Using device: {self.device}")
+
     # def initialize_model(self, hidden_units, dropout):
     #     self.model = NeuralNet(self.n_features, hidden_units, 1, dropout)
 
@@ -200,6 +203,7 @@ class NeuralTypePredictor:
               batch_size: int = 16,
               learning_rate: float = 0.01,
               optimizer: str = None,
+              momentum: float = 0,
               patience: int = 5,
               X_val: torch.Tensor = None,
               y_val: torch.Tensor = None):
@@ -212,8 +216,13 @@ class NeuralTypePredictor:
         best_model_state = None
         if X_val is not None and y_val is not None:
             y_val = y_val.unsqueeze(-1)
+            X_val, y_val = X_val.to(self.device), y_val.to(self.device)
         elif X_val is not None or y_val is not None:
             logger.warning(f"Both X_val and y_val must be provided for validation.")
+
+        # Move the model and training data to the device (CPU or GPU)
+        self.model = self.model.to(self.device)
+        x_train, y_train = x_train.to(self.device), y_train.to(self.device)
 
         self.model.train()
         loss_function = torch.nn.BCELoss()
@@ -221,7 +230,7 @@ class NeuralTypePredictor:
         if optimizer == "Adam":
             optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         else:
-            optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate)
+            optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate, momentum=momentum)
         loss = 0
         for i in range(n_epochs):
             batches = training_batches(x_train, y_train, batch_size)
@@ -247,7 +256,7 @@ class NeuralTypePredictor:
                     best_model_state = self.model.state_dict()
                 else:
                     patience_counter += 1
-                    logger.info(f"No improvement for {patience_counter} epoch(s).")
+                    logger.debug(f"No improvement for {patience_counter} epoch(s).")
 
                 # Early stopping condition
                 if patience_counter >= patience and best_model_state is not None:
@@ -273,6 +282,7 @@ class NeuralTypePredictor:
         if X.shape[0] == 0:
             logger.debug(f"Entity does not seem to have any type.")
             return None
+        X = X.to(self.device)
         prediction = self.model(X)
         sorted_indices = torch.argsort(prediction.view(-1))
         sorted_indices = sorted_indices.flip([0])

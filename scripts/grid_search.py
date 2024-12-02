@@ -1,4 +1,5 @@
 import argparse
+import logging
 import sys
 from itertools import product
 
@@ -41,17 +42,31 @@ def main(args):
         "dropout": [0.1, 0.2, 0.3, 0.4],
         "learning_rate_init": [0.001, 0.01, 0.1],
         "batch_size": [16, 32, 64],
-        "optimizer": ["Adam", "SGD"],
+        "optimizer": ["SGD"],
+        "momentum": [0, 0.3, 0.6]
     }
+
+    parameters = {
+        "hidden_layer_size": [256, 512],
+        "activation": ["sigmoid"],
+        "hidden_layers": [1, 2],
+        "dropout": [0.2, 0.4, 0.6],
+        "learning_rate_init": [0.001, 0.01, 0.1],
+        "batch_size": [16, 32],
+        "optimizer": ["SGD"],
+        "momentum": [0, 0.3, 0.6]
+    }
+
 
     parameters = {
         "hidden_layer_size": [512],
         "activation": ["sigmoid"],
-        "hidden_layers": [1, 2],
+        "hidden_layers": [1],
         "dropout": [0.2],
-        "learning_rate_init": [0.1],
-        "batch_size": [16],
+        "learning_rate_init": [0.01, 0.1],
+        "batch_size": [16,],
         "optimizer": ["SGD"],
+        "momentum": [0, 0.3]
     }
 
     logger.info("Initializing Neural Network ...")
@@ -71,11 +86,12 @@ def main(args):
                             hidden_layers=params["hidden_layers"],
                             dropout=params["dropout"],
                             activation=params["activation"])
-        nn.train(X, y, learning_rate=params["learning_rate_init"], batch_size=params["batch_size"], optimizer=params["optimizer"], X_val=X_val, y_val=y_val)
+        nn.train(X, y, learning_rate=params["learning_rate_init"], batch_size=params["batch_size"], optimizer=params["optimizer"], momentum=params["momentum"], X_val=X_val, y_val=y_val)
 
         hit_rate = evaluate(nn.predict, validation_benchmark)
         if hit_rate > best_hit_rate:
             nn.save_model(args.save_model)
+            best_hit_rate = hit_rate
             logger.info(f"New best model found with hit rate: {hit_rate:.2f}")
             logger.info(f"Parameters: {params}")
 
@@ -88,6 +104,6 @@ if __name__ == "__main__":
                         help="File containing the validation dataset. Relevant for the neural network model only.")
     parser.add_argument("--save_model", type=str, required=True, help="File to which to save the model.")
 
-    logger = log.setup_logger()
+    logger = log.setup_logger(stdout_level=logging.INFO)
 
     main(parser.parse_args())
