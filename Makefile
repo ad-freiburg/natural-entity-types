@@ -7,13 +7,33 @@ RESET := \033[0m
 
 DATA_DIR = ./data/
 WIKIDATA_MAPPINGS_DIR = ${DATA_DIR}wikidata_mappings/
+TYPE_FEATURES_DIR = ${DATA_DIR}computed_mappings/
+PREDICATE_VARIANCES_DIR = ${DATA_DIR}predicate_variances/
 
 WIKIDATA_SPARQL_ENDPOINT = https://qlever.cs.uni-freiburg.de/api/wikidata
 # Note that the query names are also used for generating the file name by
 # casting the query name to lowercase and appending .tsv
 DATA_QUERY_NAMES = QID_TO_DESCRIPTION QID_TO_LABEL QID_TO_SITELINKS QID_TO_P31 QID_TO_P279
 
-# Get data for queries from $(DATA_QUERY_VARABLES) via $(WIKIDATA_SPARQL_ENDPOINT) and write to tsv files.
+download_all: download_wikidata_mappings download_type_features download_predicate_variances
+
+download_wikidata_mappings:
+    @[ -d ${WIKIDATA_MAPPINGS_DIR} ] || mkdir ${WIKIDATA_MAPPINGS_DIR}
+	wget https://ad-research.cs.uni-freiburg.de/data/natural-entity-types/wikidata_mappings.tar.gz
+	tar -xvzf wikidata_mappings.tar.gz -C ${WIKIDATA_MAPPINGS_DIR}
+	rm wikidata_mappings.tar.gz
+
+download_type_features:
+    @[ -d ${TYPE_FEATURES_DIR} ] || mkdir ${TYPE_FEATURES_DIR}
+	wget https://ad-research.cs.uni-freiburg.de/data/natural-entity-types/computed_type_features.tar.gz
+	tar -xvzf computed_type_features.tar.gz -C ${TYPE_FEATURES_DIR}
+	rm computed_type_features.tar.gz
+
+download_predicate_variances:
+    @[ -d ${PREDICATE_VARIANCES_DIR} ] || mkdir ${PREDICATE_VARIANCES_DIR}
+	wget https://ad-research.cs.uni-freiburg.de/data/natural-entity-types/predicate_variances.tar.gz
+	tar -xvzf predicate_variances.tar.gz -C ${PREDICATE_VARIANCES_DIR}
+	rm predicate_variances.tar.gz
 
 generate_all: generate_wikidata_mappings compute_type_features compute_predicate_variances
 
