@@ -18,19 +18,19 @@ DATA_QUERY_NAMES = QID_TO_DESCRIPTION QID_TO_LABEL QID_TO_SITELINKS QID_TO_P31 Q
 download_all: download_wikidata_mappings download_type_features download_predicate_variances
 
 download_wikidata_mappings:
-    @[ -d ${WIKIDATA_MAPPINGS_DIR} ] || mkdir ${WIKIDATA_MAPPINGS_DIR}
+	@[ -d ${WIKIDATA_MAPPINGS_DIR} ] || mkdir ${WIKIDATA_MAPPINGS_DIR}
 	wget https://ad-research.cs.uni-freiburg.de/data/natural-entity-types/wikidata_mappings.tar.gz
 	tar -xvzf wikidata_mappings.tar.gz -C ${WIKIDATA_MAPPINGS_DIR}
 	rm wikidata_mappings.tar.gz
 
 download_type_features:
-    @[ -d ${TYPE_FEATURES_DIR} ] || mkdir ${TYPE_FEATURES_DIR}
+	@[ -d ${TYPE_FEATURES_DIR} ] || mkdir ${TYPE_FEATURES_DIR}
 	wget https://ad-research.cs.uni-freiburg.de/data/natural-entity-types/computed_type_features.tar.gz
 	tar -xvzf computed_type_features.tar.gz -C ${TYPE_FEATURES_DIR}
 	rm computed_type_features.tar.gz
 
 download_predicate_variances:
-    @[ -d ${PREDICATE_VARIANCES_DIR} ] || mkdir ${PREDICATE_VARIANCES_DIR}
+	@[ -d ${PREDICATE_VARIANCES_DIR} ] || mkdir ${PREDICATE_VARIANCES_DIR}
 	wget https://ad-research.cs.uni-freiburg.de/data/natural-entity-types/predicate_variances.tar.gz
 	tar -xvzf predicate_variances.tar.gz -C ${PREDICATE_VARIANCES_DIR}
 	rm predicate_variances.tar.gz
