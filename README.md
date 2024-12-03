@@ -10,13 +10,25 @@ candidate type and select the most natural one.
 
 ## Setup
 
-Generate the necessary data files by running the following command:
+Install the requirements (in a virtual environment) by running the following command:
+
+    pip3 install -r requirements.txt
+
+Run
+
+    python3 -m spacy download en_core_web_lg
+
+Finally, generate the necessary data files by running the following command:
 
     make generate_all
 
 This will download Wikidata mappings using the [QLever](https://qlever.cs.uni-freiburg.de/wikidata) API, generate
 databases from them for quick access, and compute type properties from these Wikidata mappings which are used as
 features by the models. This can take a couple of hours.
+
+OR download the precomputed mappings by running (faster, but the mappings will not be as up-to-date):
+
+    make download_all
 
 
 ## Evaluation
