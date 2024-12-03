@@ -105,6 +105,7 @@ class NeuralTypePredictor:
             "relu": torch.nn.ReLU,
             "tanh": torch.nn.Tanh,
             "sigmoid": torch.nn.Sigmoid,
+            "leaky_relu": torch.nn.LeakyReLU
         }
 
         # Check if the provided activation is supported
@@ -237,7 +238,7 @@ class NeuralTypePredictor:
         self.model.train()
         loss_function = torch.nn.BCELoss()
 
-        if optimizer == "Adam":
+        if optimizer == "adam":
             optimizer = torch.optim.Adam(self.model.parameters(), lr=learning_rate)
         else:
             optimizer = torch.optim.SGD(self.model.parameters(), lr=learning_rate, momentum=momentum)
