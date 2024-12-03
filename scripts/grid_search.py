@@ -15,10 +15,12 @@ from src.utils.colors import Colors
 
 
 def print_parameters(params, parameter_names, top_k=1):
+    print()
     for name in parameter_names:
         print(f"{name}: ", end="")
         for i in range(min(top_k, len(params))):
-            print(f"\t{params[i][name]}")
+            print(f"\t{params[i][name]}", end="")
+        print()
     print()
 
 
@@ -42,12 +44,11 @@ def main(args):
 
     parameters = {
         "optimizer": ["adam"],
-        "hidden_layer_size": [256],
-        "activation": ["sigmoid"],
-        "dropout": [0.2],
+        "hidden_layer_size": [256, 512],
+        "activation": ["tanh", "sigmoid", "relu", "leaky_relu"],
+        "dropout": [0, 0.2, 0.4],
         "learning_rate": [0.0001, 0.0005, 0.001],
-        "batch_size": [16],
-        "momentum": [0]
+        "batch_size": [16, 32, 64]
     }
 
     logger.info("Initializing Neural Network ...")
@@ -65,7 +66,7 @@ def main(args):
     best_hit_rate = 0
     best_params = None
     for params in param_combinations:
-        logger.info(f"Testing new parameter combination")
+        logger.info(f"Testing parameter combination")
         print_parameters([params], parameters.keys())
         nn.initialize_model(hidden_layer_sizes=params["hidden_layer_size"],
                             hidden_layers=1,
@@ -97,7 +98,9 @@ def main(args):
         top_3_accuracies = [p[1] for p in top_3_params_and_accuracy]
         print(f"Currently best three parameter combinations:")
         print_parameters(top_3_params, parameters.keys(), top_k=3)
-        print(f"\t\t{top_3_accuracies[0]:.2f}\t{top_3_accuracies[1]:.2f}\t{top_3_accuracies[2]:.2f}")
+        for acc in top_3_accuracies:
+            print(f"\t{acc:.2f}", end="")
+        print()
 
     logger.info(f"Best model found with accuracy @ 1: {best_hit_rate:.2f} for parameters:")
     print_parameters([best_params], parameters.keys())
