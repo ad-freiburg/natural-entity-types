@@ -48,7 +48,8 @@ def main(args):
         "activation": ["tanh", "sigmoid", "relu", "leaky_relu"],
         "dropout": [0, 0.2, 0.4],
         "learning_rate": [0.0001, 0.0005, 0.001],
-        "batch_size": [16, 32, 64]
+        "batch_size": [16, 32, 64],
+        "momentum": [0]
     }
 
     logger.info("Initializing Neural Network ...")
@@ -82,7 +83,7 @@ def main(args):
                  y_val=y_val,
                  entity_index=entity_index,
                  val_benchmark=validation_benchmark,
-                 patience=1)  # TODO
+                 patience=5)
 
         evaluation_results = evaluate(nn.predict, validation_benchmark, [MetricName.HIT_RATE_AT_1])
         hit_rate = evaluation_results[MetricName.HIT_RATE_AT_1]
