@@ -33,16 +33,6 @@ def main(args):
     nn = NeuralTypePredictor(entity_db)
 
     parameters = {
-        "optimizer": ["adam", "sgd"],
-        "hidden_layer_size": [256, 512],
-        "activation": ["tanh", "sigmoid", "relu", "leaky_relu"],
-        "dropout": [0, 0.2, 0.4],
-        "learning_rate": [0.0001, 0.001, 0.01],
-        "batch_size": [16, 32, 64],
-        "momentum": [0, 0.3, 0.6, 0.9]
-    }
-
-    parameters = {
         "optimizer": ["adam"],
         "hidden_layer_size": [256, 512],
         "activation": ["tanh", "sigmoid", "relu", "leaky_relu"],
@@ -67,7 +57,7 @@ def main(args):
     best_hit_rate = 0
     best_params = None
     for params in param_combinations:
-        logger.info(f"Testing parameter combination")
+        logger.info(f"{Colors.BOLD}Testing parameter combination{Colors.END}")
         print_parameters([params], parameters.keys())
         nn.initialize_model(hidden_layer_sizes=params["hidden_layer_size"],
                             hidden_layers=1,
@@ -99,6 +89,7 @@ def main(args):
         top_3_accuracies = [p[1] for p in top_3_params_and_accuracy]
         print(f"Currently best three parameter combinations:")
         print_parameters(top_3_params, parameters.keys(), top_k=3)
+        print("\t", end="")
         for acc in top_3_accuracies:
             print(f"\t{acc:.2f}", end="")
         print()

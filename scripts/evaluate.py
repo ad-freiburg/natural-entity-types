@@ -58,7 +58,7 @@ def main(args):
         else:
             nn.initialize_model(hidden_layer_sizes=512,
                                 hidden_layers=1,
-                                dropout=0.2,
+                                dropout=0.4,
                                 activation="sigmoid")
             X, y = nn.create_dataset(args.training_file)
             validation_benchmark, X_val, y_val, entity_index = None, None, None, None
@@ -66,7 +66,7 @@ def main(args):
                 validation_benchmark = BenchmarkReader().read_benchmark(args.validation_file)
                 X_val, y_val, entity_index = nn.create_dataset(args.validation_file, return_entity_index=True)
 
-            nn.train(X, y, X_val=X_val, y_val=y_val, entity_index=entity_index, val_benchmark=validation_benchmark)
+            nn.train(X, y, X_val=X_val, y_val=y_val, batch_size=64, learning_rate=0.0001, optimizer="adam", entity_index=entity_index, val_benchmark=validation_benchmark)
         predict_methods.append((nn.predict, ModelNames.NEURAL_NETWORK.value))
         if args.save_model:
             nn.save_model(args.save_model)
