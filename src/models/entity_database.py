@@ -22,11 +22,22 @@ class EntityDatabase:
         self.accumulated_type_popularity = {}
         self.entity_to_popularity = {}
         self.entities = set()
+        self.typed_entities = set()
         self.prominent_types = {}
         self.predicate_variances = {}
 
     def load_entities(self):
         self.entities = EntityDatabaseReader.read_all_entities()
+
+    def load_all_typed_entities(self, as_dictionary=False):
+        logger.info(f"Loading all typed entities ...")
+        if not self.subclass_of_mapping:
+            self.load_subclass_of_mapping(as_dictionary)
+        if not self.instance_of_mapping:
+            self.load_instance_of_mapping(as_dictionary)
+        self.typed_entities = set(self.instance_of_mapping.keys())
+        self.typed_entities.update(self.subclass_of_mapping.keys())
+        logger.info(f"-> {len(self.typed_entities)} typed entities loaded.")
 
     def load_instance_of_mapping(self, as_dictionary=False):
         if not self.instance_of_mapping:
