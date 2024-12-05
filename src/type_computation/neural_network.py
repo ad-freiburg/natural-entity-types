@@ -7,7 +7,7 @@ import logging
 
 from src.evaluation.benchmark_reader import BenchmarkReader
 from src.evaluation.evaluation import evaluate_batch_prediction
-from src.evaluation.metrics import Metrics, MetricName
+from src.evaluation.metrics import MetricName
 from src.models.entity_database import EntityDatabase
 from src.type_computation.feature_scores import FeatureScores
 
@@ -18,24 +18,6 @@ random.seed(246)
 
 
 logger = logging.getLogger("main." + __name__.split(".")[-1])
-
-
-class NeuralNet(torch.nn.Module):
-    def __init__(self, in_size, hidden_size, out_size, dropout=0.5):
-        super(NeuralNet, self).__init__()
-        self.l1 = torch.nn.Linear(in_size, hidden_size)
-        self.dropout1 = torch.nn.Dropout(dropout)
-        self.sigmoid1 = torch.nn.Sigmoid()
-        self.l2 = torch.nn.Linear(hidden_size, out_size)
-        self.sigmoid2 = torch.nn.Sigmoid()
-
-    def forward(self, x):
-        out = self.l1(x)
-        out = self.dropout1(out)
-        out = self.sigmoid1(out)
-        out = self.l2(out)
-        out = self.sigmoid2(out)
-        return out
 
 
 def training_batches(x_train: torch.Tensor,
@@ -82,10 +64,7 @@ class NeuralTypePredictor:
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Using device: {self.device}")
 
-    # def initialize_model(self, hidden_units, dropout):
-    #     self.model = NeuralNet(self.n_features, hidden_units, 1, dropout)
-
-    def initialize_model(self, hidden_layer_sizes=512, hidden_layers=1, dropout=0.5, activation="sigmoid"):
+    def initialize_model(self, hidden_layer_sizes=512, hidden_layers=1, dropout=0.4, activation="sigmoid"):
         """
         Initialize a PyTorch model with the given parameters.
 
@@ -209,9 +188,9 @@ class NeuralTypePredictor:
               x_train: torch.Tensor,
               y_train: torch.Tensor,
               n_epochs: int = 100,
-              batch_size: int = 16,
-              learning_rate: float = 0.01,
-              optimizer: str = None,
+              batch_size: int = 64,
+              learning_rate: float = 0.0001,
+              optimizer: str = "adam",
               momentum: float = 0,
               patience: int = 5,
               X_val: torch.Tensor = None,
@@ -304,40 +283,6 @@ class NeuralTypePredictor:
         Predict the types for a batch of entities.
         """
         return self.model(X)
-
-    def evaluate_shuffled(self, filename: str, cols_to_shuffle: Tuple[int, int]):
-        benchmark = BenchmarkReader.read_benchmark(filename)
-
-        X, y, entity_index = self.create_dataset(filename, cols_to_shuffle, True)
-
-        aps = []
-        p_at_1s = []
-        p_at_rs = []
-        for entity_id in benchmark:
-            # Get relevant submatrix from X
-            result_types = []
-            if entity_id in entity_index:
-                indices = [idx for idx, _ in entity_index[entity_id]]
-                X_entity = X[indices]
-                # Get predictions for the candidate types of the entity
-                prediction = self.model(X_entity)
-                sorted_indices = torch.argsort(prediction.view(-1))
-                sorted_indices = sorted_indices.flip([0])
-                result_types = sorted([(prediction[i], entity_index[entity_id][i][1]) for i in sorted_indices], key=lambda x: x[0],
-                              reverse=True)
-                result_types = [r[1] for r in result_types]  # Get only the type ids, not the scores
-            ap = Metrics.average_precision(result_types, benchmark[entity_id])
-            p_at_1 = Metrics.precision_at_k(result_types, benchmark[entity_id], 1)
-            p_at_r = Metrics.precision_at_k(result_types, benchmark[entity_id], len(benchmark[entity_id]))
-            aps.append(ap)
-            p_at_1s.append(p_at_1)
-            p_at_rs.append(p_at_r)
-        mean_ap = sum(aps) / len(aps)
-        mean_p_at_1 = sum(p_at_1s) / len(p_at_1s)
-        mean_p_at_r = sum(p_at_rs) / len(p_at_rs)
-        print(f"MAP: {mean_ap:.2f}")
-        print(f"MP @ 1: {mean_p_at_1:.2f}")
-        print(f"MP @ R: {mean_p_at_r:.2f}")
 
     def save_model(self, model_path):
         """
