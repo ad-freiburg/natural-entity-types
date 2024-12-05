@@ -4,6 +4,7 @@ import spacy
 import random
 import math
 import logging
+from functools import lru_cache
 
 from src.evaluation.benchmark_reader import BenchmarkReader
 from src.evaluation.evaluation import evaluate_batch_prediction
@@ -60,6 +61,7 @@ class NeuralTypePredictor:
         self.model = None
 
         self.type_embedding_cache = {}
+        self.desc_embedding_cache = {}
 
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
         logger.info(f"Using device: {self.device}")
@@ -114,6 +116,7 @@ class NeuralTypePredictor:
         # Define the model as a sequential container
         self.model = torch.nn.Sequential(*layers)
 
+    @lru_cache(maxsize=1000000)
     def get_text_embedding(self, string):
         if not string:
             return torch.zeros(1, self.embedding_size)
@@ -130,16 +133,11 @@ class NeuralTypePredictor:
         norm_var = self.feature_scores.get_normalized_variance(type_id)
         norm_idf = self.feature_scores.get_normalized_idf(type_id)
         type_name = self.entity_db.get_entity_name(type_id)
-        if type_name in self.type_embedding_cache:
-            type_name_embedding = self.type_embedding_cache[type_name]
-        else:
-            type_name_embedding = self.get_text_embedding(type_name)
-            self.type_embedding_cache[type_name] = type_name_embedding
+        type_name_embedding = self.get_text_embedding(type_name)
         type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
         len_type_name = len(type_name) if type_name else 0
         len_desc = len(desc) if desc else 0
         type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
-        # type_depth = self.entity_db.get_type_depth(type_id)
         features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
         return torch.cat((torch.Tensor(features).unsqueeze(0), desc_embedding, type_name_embedding), dim=1)
 
@@ -183,6 +181,25 @@ class NeuralTypePredictor:
         if return_entity_index:
             return X, y, entity_index
         return X, y
+
+    def create_dataset_from_qids(self, qids: list):
+        X = []
+        idx_to_ent_type_pair = []
+        for i, e in enumerate(qids):
+            # Add a row for each entity - candidate type pair.
+            candidate_types = self.entity_db.get_entity_types_with_path_length(e)
+            desc = self.entity_db.get_entity_description(e)
+            desc_embedding = self.get_text_embedding(desc)
+            entity_name = self.entity_db.get_entity_name(e)
+            for t, path_length in candidate_types.items():
+                sample_vector = self.create_feature_vector(t, path_length, desc, desc_embedding, entity_name)
+                X.append(sample_vector)
+                idx_to_ent_type_pair.append((e, t))
+            print(f"\rAdded sample {i + 1}/{len(qids)} to dataset.", end="")
+        print()
+        X = torch.cat(X, dim=0)
+        logger.info(f"Shape of X: {X.shape}")
+        return X, idx_to_ent_type_pair
 
     def train(self,
               x_train: torch.Tensor,
