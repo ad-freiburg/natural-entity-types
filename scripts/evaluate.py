@@ -14,7 +14,7 @@ from src.evaluation.evaluation import evaluate
 
 def evaluate_method(scoring_function, benchmark, entity_db, verbose=False):
     metrics = [MetricName.HIT_RATE_AT_1, MetricName.HIT_RATE_AT_3, MetricName.HIT_RATE_AT_5,
-               MetricName.HIT_RATE_AT_10, MetricName.MRR, MetricName.AVERAGE_PRECISION, MetricName.PRECISION_AT_R]
+               MetricName.HIT_RATE_AT_10, MetricName.MRR]
 
     evaluation_results = evaluate(scoring_function, benchmark, metrics, entity_db, verbose)
 
@@ -78,13 +78,16 @@ def main(args):
 
     # Evaluate all models on all benchmarks
     for benchmark_file in args.benchmark_files:
-        print(f"***** Evaluating benchmark {benchmark_file} *****")
+        print()
+        print(f"Evaluating benchmark {benchmark_file}")
         benchmark = BenchmarkReader.read_benchmark(benchmark_file)
         for predict_method, model_name in predict_methods:
-            print(f"***** Evaluating {model_name} *****")
+            print(f"Evaluated model: {model_name}")
+            print()
             if model_name == ModelNames.ORACLE.value:
                 oracle.set_benchmark(benchmark)
             evaluate_method(predict_method, benchmark, entity_db, verbose=args.verbose)
+            print()
 
 
 if __name__ == "__main__":

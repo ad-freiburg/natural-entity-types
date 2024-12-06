@@ -1,4 +1,5 @@
 from src.evaluation.metrics import Metrics, MetricName
+from src.utils.colors import Colors
 
 
 def get_result_for_metric(metric, result_types, benchmark_types):
@@ -36,12 +37,13 @@ def evaluate(scoring_function, benchmark, metrics, entity_db=None, verbose=False
 
         if verbose:
             entity_name = entity_db.get_entity_name(entity_id)
-            gt_entities = ", ".join([f"{entity_db.get_entity_name(t)} ({t})" for t in benchmark[entity_id]])
-            predicted_entities = ", ".join([f"{entity_db.get_entity_name(t)} ({t})" for t in result_types[:6]]) + "..."
-            results = ", ".join([f"{metric}: {evaluation_results[metric]}" for metric in evaluation_results])
-            print(f"Results for \"{entity_name}\" ({entity_id}):\n"
+            gt_entities = ", ".join([f"{Colors.BLUE}{entity_db.get_entity_name(t)}{Colors.END} ({t})" for t in benchmark[entity_id]])
+            predicted_entities = ", ".join([f"{Colors.BLUE}{entity_db.get_entity_name(t)}{Colors.END} ({t})" for t in result_types[:4]]) + "..."
+            results = ", ".join([f"{metric.value}: {evaluation_results[metric][-1]}" for metric in evaluation_results])
+            print()
+            print(f"Results for {Colors.BOLD}\"{entity_name}\"{Colors.END} ({entity_id}):\n"
                   f"\tGround truth: {gt_entities}\n"
-                  f"\tPrediction: {predicted_entities}"
+                  f"\tPrediction: {predicted_entities}\n"
                   f"\tResults: {results}")
 
     mean_evaluation_results = {}
