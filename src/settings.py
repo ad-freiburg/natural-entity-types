@@ -40,3 +40,5 @@ PROMINENT_TYPE_FILE = DATA_DIRECTORY + "computed_mappings/prominent_types.tsv"
 
 PREDICATES_DIRECTORY = DATA_DIRECTORY + "predicates/"
 PREDICATE_VARIANCES_DIRECTORY = DATA_DIRECTORY + "predicate_variances/"
+
+TMP_FORKSERVER_CONFIG_FILE = DATA_DIRECTORY + "tmp_forkserver_config.json"
