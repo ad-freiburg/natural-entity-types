@@ -195,10 +195,7 @@ class NeuralTypePredictor:
                 sample_vector = self.create_feature_vector(t, path_length, desc, desc_embedding, entity_name)
                 X.append(sample_vector)
                 idx_to_ent_type_pair.append((e, t))
-            print(f"\rAdded sample {i + 1}/{len(qids)} to dataset.", end="")
-        print()
         X = torch.cat(X, dim=0)
-        logger.info(f"Shape of X: {X.shape}")
         return X, idx_to_ent_type_pair
 
     def train(self,
