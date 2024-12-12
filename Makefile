@@ -9,11 +9,27 @@ DATA_DIR = ./data/
 WIKIDATA_MAPPINGS_DIR = ${DATA_DIR}wikidata_mappings/
 TYPE_FEATURES_DIR = ${DATA_DIR}computed_mappings/
 PREDICATE_VARIANCES_DIR = ${DATA_DIR}predicate_variances/
+TRIPLES_FILE = ${DATA_DIR}/results/natural_types.ttl
 
 WIKIDATA_SPARQL_ENDPOINT = https://qlever.cs.uni-freiburg.de/api/wikidata
 # Note that the query names are also used for generating the file name by
 # casting the query name to lowercase and appending .tsv
 DATA_QUERY_NAMES = QID_TO_DESCRIPTION QID_TO_LABEL QID_TO_SITELINKS QID_TO_P31 QID_TO_P279
+
+triples:
+	@if ls ${TRIPLES_FILE} 1> /dev/null 2>&1; then \
+	  echo -e "$${RED}Natural entity type triples file already exists at ${TRIPLES_FILE} . Delete (e.g. by running `make delete_triples`) or rename it if you want to create a new triples file.$${RESET}"; echo; \
+	else \
+	  python3 scripts/create_natural_type_triples.py --load_model models/nn.512_sig_d04_64_adam00001.70k.pt -o ${TRIPLES_FILE} -m 12; \
+	fi
+
+delete_triples:
+	@if ls ${TRIPLES_FILE} 1> /dev/null 2>&1; then \
+	  rm ${TRIPLES_FILE}; \
+	  echo -e "Deleted triples file at ${TRIPLES_FILE}"; \
+	else \
+	  echo -e "No triples file found at ${TRIPLES_FILE}"; \
+	fi
 
 download_all: download_wikidata_mappings download_type_features download_predicate_variances
 
