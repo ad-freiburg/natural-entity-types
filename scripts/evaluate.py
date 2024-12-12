@@ -13,13 +13,13 @@ from src.evaluation.evaluation import evaluate
 
 
 def evaluate_method(scoring_function, benchmark, entity_db, verbose=False):
-    metrics = [MetricName.HIT_RATE_AT_1, MetricName.HIT_RATE_AT_3, MetricName.HIT_RATE_AT_5,
-               MetricName.HIT_RATE_AT_10, MetricName.MRR]
+    metrics = [MetricName.TOP_1_ACCURACY, MetricName.TOP_3_ACCURACY, MetricName.TOP_5_ACCURACY,
+               MetricName.TOP_10_ACCURACY, MetricName.MRR]
 
     evaluation_results = evaluate(scoring_function, benchmark, metrics, entity_db, verbose)
 
     for metric in evaluation_results:
-        print(f"{metric.value}: {evaluation_results[metric]:.2f}")
+        print(f"{metric.value}: {evaluation_results[metric]*100:.1f}")
 
 
 def main(args):
@@ -75,6 +75,12 @@ def main(args):
         from src.type_computation.oracle import Oracle
         oracle = Oracle(entity_db)
         predict_methods.append((oracle.predict, ModelNames.ORACLE.value))
+    if ModelNames.PREDICTION_READER.value in args.models and args.prediction_file:
+        logger.info("Initializing Prediction Reader ...")
+        from src.type_computation.prediction_reader import PredictionReader
+        prediction_reader = PredictionReader(args.prediction_file)
+        predict_methods.append((prediction_reader.predict, ModelNames.PREDICTION_READER.value))
+
 
     # Evaluate all models on all benchmarks
     for benchmark_file in args.benchmark_files:
@@ -92,7 +98,8 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__)
-    parser.add_argument("-m", "--models", type=str, nargs="+", required=True, choices=[f.value for f in ModelNames],
+    parser.add_argument("-m", "--models", type=str, nargs="+",
+                        default=[ModelNames.NEURAL_NETWORK.value], choices=[f.value for f in ModelNames],
                         help="Names of the models that will be evaluated.")
     parser.add_argument("--save_model", type=str, help="File to which to save the model.")
     parser.add_argument("--load_model", type=str, help="File from which to load the model.")
@@ -104,6 +111,8 @@ if __name__ == "__main__":
                         help="File containing the validation dataset. Relevant for the neural network model only.")
     parser.add_argument("-v", "--verbose", action="store_true",
                         help="Print details about each evaluated benchmark entity.")
+    parser.add_argument("-pfile", "--prediction_file", type=str,
+                        help="File containing the predictions to be evaluated, one line per entity with sorted type QIDs")
 
     args = parser.parse_args()
     logger = log.setup_logger()
@@ -112,6 +121,9 @@ if __name__ == "__main__":
             (ModelNames.GRADIENT_BOOST_REGRESSOR.value in args.models or ModelNames.NEURAL_NETWORK in args.models)):
         logger.info("The model you selected requires that you provide a training file via the -train option or load a "
                     "pre-trained model using the --load_model option.")
+        sys.exit(1)
+    if ModelNames.PREDICTION_READER.value in args.models and not args.prediction_file:
+        logger.info("The Prediction Reader model requires that you provide a prediction file via the -pfile option.")
         sys.exit(1)
 
     main(args)

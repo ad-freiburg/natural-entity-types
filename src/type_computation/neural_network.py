@@ -215,7 +215,7 @@ class NeuralTypePredictor:
         Train the neural network.
         """
         # Initialize variables for Early Stopping
-        best_val_hit_rate = 0
+        best_val_top_1_acc = 0
         patience_counter = 0
         best_model_state = None
         if X_val is not None and y_val is not None and entity_index is not None:
@@ -249,12 +249,12 @@ class NeuralTypePredictor:
                 self.model.eval()
                 with torch.no_grad():
                     y_val_pred = self.model(X_val)
-                    evaluation_results = evaluate_batch_prediction(y_val_pred, val_benchmark, entity_index, [MetricName.HIT_RATE_AT_1])
-                    hit_rate = evaluation_results[MetricName.HIT_RATE_AT_1]
+                    evaluation_results = evaluate_batch_prediction(y_val_pred, val_benchmark, entity_index, [MetricName.TOP_1_ACCURACY])
+                    top_1_acc = evaluation_results[MetricName.TOP_1_ACCURACY]
 
                 # Check for improvement
-                if hit_rate > best_val_hit_rate:
-                    best_val_hit_rate = hit_rate
+                if top_1_acc > best_val_top_1_acc:
+                    best_val_top_1_acc = top_1_acc
                     patience_counter = 0  # Reset patience counter
                     # Store the best model
                     best_model_state = self.model.state_dict()

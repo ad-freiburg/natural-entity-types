@@ -8,3 +8,4 @@ class ModelNames(Enum):
     MANUAL_SCORING = "manual_scoring"
     NEURAL_NETWORK = "nn"
     ORACLE = "oracle"  # Best possible prediction given the candidate types
+    PREDICTION_READER = "prediction_reader"

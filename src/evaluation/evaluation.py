@@ -3,14 +3,14 @@ from src.utils.colors import Colors
 
 
 def get_result_for_metric(metric, result_types, benchmark_types):
-    if metric == MetricName.HIT_RATE_AT_1:
-        evaluation_result = Metrics.hit_rate_at_k(result_types, benchmark_types, 1)
-    elif metric == MetricName.HIT_RATE_AT_3:
-        evaluation_result = Metrics.hit_rate_at_k(result_types, benchmark_types, 3)
-    elif metric == MetricName.HIT_RATE_AT_5:
-        evaluation_result = Metrics.hit_rate_at_k(result_types, benchmark_types, 5)
-    elif metric == MetricName.HIT_RATE_AT_10:
-        evaluation_result = Metrics.hit_rate_at_k(result_types, benchmark_types, 10)
+    if metric == MetricName.TOP_1_ACCURACY:
+        evaluation_result = Metrics.top_k_accuracy(result_types, benchmark_types, 1)
+    elif metric == MetricName.TOP_3_ACCURACY:
+        evaluation_result = Metrics.top_k_accuracy(result_types, benchmark_types, 3)
+    elif metric == MetricName.TOP_5_ACCURACY:
+        evaluation_result = Metrics.top_k_accuracy(result_types, benchmark_types, 5)
+    elif metric == MetricName.TOP_10_ACCURACY:
+        evaluation_result = Metrics.top_k_accuracy(result_types, benchmark_types, 10)
     elif metric == MetricName.MRR:
         evaluation_result = Metrics.mrr(result_types, benchmark_types)
     elif metric == MetricName.AVERAGE_PRECISION:

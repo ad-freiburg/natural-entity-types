@@ -51,10 +51,10 @@ def main(args):
     # Generate parameter combinations as dictionaries
     keys = parameters.keys()
     param_combinations = [dict(zip(keys, values)) for values in product(*parameters.values())]
-    params_with_hit_rate = {}
+    params_with_top_1_acc = {}
 
     # Loop through the combinations
-    best_hit_rate = 0
+    best_top_1_acc = 0
     best_params = None
     for params in param_combinations:
         logger.info(f"{Colors.BOLD}Testing parameter combination{Colors.END}")
@@ -75,16 +75,16 @@ def main(args):
                  val_benchmark=validation_benchmark,
                  patience=5)
 
-        evaluation_results = evaluate(nn.predict, validation_benchmark, [MetricName.HIT_RATE_AT_1])
-        hit_rate = evaluation_results[MetricName.HIT_RATE_AT_1]
-        logger.info(f"Accuracy @ 1: {hit_rate:.2f}")
-        params_with_hit_rate[tuple(params.items())] = hit_rate
-        if hit_rate > best_hit_rate:
+        evaluation_results = evaluate(nn.predict, validation_benchmark, [MetricName.TOP_1_ACCURACY])
+        top_1_acc = evaluation_results[MetricName.TOP_1_ACCURACY]
+        logger.info(f"Accuracy @ 1: {top_1_acc:.2f}")
+        params_with_top_1_acc[tuple(params.items())] = top_1_acc
+        if top_1_acc > best_top_1_acc:
             nn.save_model(args.save_model)
-            best_hit_rate = hit_rate
+            best_top_1_acc = top_1_acc
             best_params = params
-            print(f"{Colors.BOLD}New best model found with accuracy @ 1: {hit_rate:.2f}{Colors.END}")
-        top_3_params_and_accuracy = sorted(params_with_hit_rate.items(), key=lambda x: x[1], reverse=True)[:3]
+            print(f"{Colors.BOLD}New best model found with accuracy @ 1: {top_1_acc:.2f}{Colors.END}")
+        top_3_params_and_accuracy = sorted(params_with_top_1_acc.items(), key=lambda x: x[1], reverse=True)[:3]
         top_3_params = [dict(p[0]) for p in top_3_params_and_accuracy]
         top_3_accuracies = [p[1] for p in top_3_params_and_accuracy]
         print(f"Currently best three parameter combinations:")
@@ -94,13 +94,13 @@ def main(args):
             print(f"\t{acc:.2f}", end="")
         print()
 
-    logger.info(f"Best model found with accuracy @ 1: {best_hit_rate:.2f} for parameters:")
+    logger.info(f"Best model found with accuracy @ 1: {best_top_1_acc:.2f} for parameters:")
     print_parameters([best_params], parameters.keys())
 
     if args.output_file:
         with open(args.output_file, "w") as f:
-            for params, hit_rate in sorted(params_with_hit_rate.items(), key=lambda x: x[1], reverse=True):
-                f.write(f"{params}: {hit_rate}\n")
+            for params, top_1_acc in sorted(params_with_top_1_acc.items(), key=lambda x: x[1], reverse=True):
+                f.write(f"{params}: {top_1_acc}\n")
 
 
 if __name__ == "__main__":
@@ -110,7 +110,7 @@ if __name__ == "__main__":
     parser.add_argument("-val", "--validation_file", type=str, required=True,
                         help="File containing the validation dataset. Relevant for the neural network model only.")
     parser.add_argument("--save_model", type=str, required=True, help="File to which to save the model.")
-    parser.add_argument("--output_file", type=str, help="File to which to write the parameters sorted by hit rate to.")
+    parser.add_argument("--output_file", type=str, help="File to which to write the parameters sorted by accuracy to.")
 
     logger = log.setup_logger(stdout_level=logging.INFO)
 

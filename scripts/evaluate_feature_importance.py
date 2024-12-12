@@ -33,9 +33,9 @@ def main(args):
             logger.info(f"Evaluating feature importance on benchmark {Colors.BLUE}{benchmark_file}{Colors.END}")
             y_pred = nn.predict_batch(X)
             evaluation_results = evaluate_batch_prediction(y_pred, benchmark, entity_index,
-                                                           [MetricName.HIT_RATE_AT_1])
+                                                           [MetricName.TOP_1_ACCURACY])
             for metric in evaluation_results:
-                print(f"{metric.value}: {evaluation_results[metric]:.2f}")
+                print(f"{metric.value}: {evaluation_results[metric]*100:.1f}")
         print()
 
 if __name__ == "__main__":
