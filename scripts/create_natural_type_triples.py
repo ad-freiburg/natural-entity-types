@@ -21,10 +21,17 @@ from src.type_computation.forkserver_neural_network import nn
 CHUNK_SIZE = 10
 MAX_TASKS_PER_CHILD = 10
 
-LABEL_PROPERTIES = ["wdt:P31279 rdfs:label \"natural type\"@en .",
-                    "wdt:P31279 schema:name \"natural type\"@en .",
-                    "wdt:P31279 schema:description \"most natural type of an entity\"@en .",
-                    "wdt:P31279 rdf:type wikibase:Property ."]
+LABEL_PROPERTIES = ["@prefix wikibase: <http://wikiba.se/ontology#> .",
+                    "@prefix rdfs: <http://www.w3.org/2000/01/rdf-schema#> .",
+                    "@prefix rdf: <http://www.w3.org/1999/02/22-rdf-syntax-ns#> .",
+                    "@prefix schema: <http://schema.org/> .",
+                    "@prefix wd: <http://www.wikidata.org/entity/> .",
+                    "@prefix wdt: <http://www.wikidata.org/prop/direct/> .",
+                    "wd:P31279 wikibase:directClaim wdt:P31279 .",
+                    "wd:P31279 rdfs:label \"natural type\"@en .",
+                    "wd:P31279 schema:name \"natural type\"@en .",
+                    "wd:P31279 schema:description \"the most natural type of an entity\"@en .",
+                    "wd:P31279 rdf:type wikibase:Property ."]
 
 def get_qids_from_file(file_path, batch_size, n=-1):
     entities = []
@@ -117,11 +124,12 @@ def main(args):
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(formatter_class=argparse.RawDescriptionHelpFormatter, description=__doc__)
-    parser.add_argument("--load_model", type=str, help="File from which to load the model.")
+    parser.add_argument("--load_model", type=str, required=True,
+                        help="File from which to load the model.")
     parser.add_argument("-i", "--input_file", type=str,
                         help="Input file with one QID per line. A type is predicted for each QID. "
-                             "If no input file is given, QLever is queried for all Wikidata items "
-                             "which are subject of a triple.")
+                             "If no input file is given, the types for all entities with an instance-of "
+                             "or subclass-of relation in the Wikidata mappings are predicted.")
     parser.add_argument("-o", "--output_file", type=str,
                         help="Output file to which to write the triples.")
     parser.add_argument("--batch_size", type=int, default=1000,
