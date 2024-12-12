@@ -14,7 +14,7 @@ logger = logging.getLogger("main." + __name__.split(".")[-1])
 
 
 class GradientBoostRegressor:
-    def __init__(self, entity_db=None):
+    def __init__(self, entity_db=None, n_estimators=300, loss='squared_error', learning_rate=0.1, max_depth=3, min_samples_split=2, min_samples_leaf=1, subsample=1.0):
         # Load entity database mappings if they have not been loaded already
         self.entity_db = entity_db if entity_db else EntityDatabase()
         self.entity_db.load_instance_of_mapping()
@@ -27,11 +27,14 @@ class GradientBoostRegressor:
         self.feature_scores.precompute_normalized_idfs()
         self.feature_scores.precompute_normalized_variances()
 
-        self.num_estimators = 300
-        self.model = GradientBoostingRegressor(loss='squared_error',
-                                               learning_rate=0.1,
+        self.num_estimators = n_estimators
+        self.model = GradientBoostingRegressor(loss=loss,
+                                               learning_rate=learning_rate,
                                                n_estimators=self.num_estimators,
-                                               max_depth=3,
+                                               max_depth=max_depth,
+                                               min_samples_split=min_samples_split,
+                                               min_samples_leaf=min_samples_leaf,
+                                               subsample=subsample,
                                                random_state=SEED)
 
     def create_feature_list(self, type_id, path_length, desc, entity_name):
