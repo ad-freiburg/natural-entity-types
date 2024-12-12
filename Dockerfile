@@ -10,7 +10,6 @@ COPY src src
 COPY scripts scripts
 COPY Makefile .
 COPY README.md .
-COPY *.py ./
 # Enable Makefile target autocompletion
 RUN echo "complete -W \"\`grep -oE '^[a-zA-Z0-9_.-]+:([^=]|$)' ?akefile | sed 's/[^a-zA-Z0-9_.-]*$//'\`\" make" >> ~/.bashrc
 # Add src directory to the PYTHONPATH
@@ -22,4 +21,4 @@ CMD umask 000; /bin/bash;
 # docker build -t natural-entity-types .
 
 # Run the container:
-# docker run -it -p 8000:8000 -v $(pwd)/data/:/data -v $(pwd)/models/:/home/models -v $(pwd)/benchmarks/:/home/benchmarks natural-entity-types
+# docker run -it -v $(pwd)/data/:/home/data -v $(pwd)/models/:/home/models -v $(pwd)/benchmarks/:/home/benchmarks natural-entity-types

@@ -14,11 +14,11 @@ Get the code and build the docker image:
 
     git clone https://github.com/ad-freiburg/natural-entity-types.git
     cd natural-entity-types
-    docker build -t natural_entity_types .
+    docker build -t natural-entity-types .
 
 Run the docker container:
 
-    docker run -it -p 8000:8000 -v $(pwd)/data/:/data -v $(pwd)/models/:/home/models -v $(pwd)/benchmarks/:/home/benchmarks natural-entity-types
+    docker run -it -v $(pwd)/data/:/home/data -v $(pwd)/models/:/home/models -v $(pwd)/benchmarks/:/home/benchmarks natural-entity-types
 
 Make sure the mounted directories are writable from within the docker container, e.g. by running:
 
