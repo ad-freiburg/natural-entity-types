@@ -8,17 +8,27 @@ of relations that starts with a single instance-of relation, followed by an arbi
 We employ various methods such as a Gradient Boost Regressor model and a feed forward neural network to score each
 candidate type and select the most natural one.
 
-## Setup
+## Setup with Docker
 
-Install the requirements (in a virtual environment) by running the following command:
+Get the code and build the docker image:
 
-    pip3 install -r requirements.txt
+    git clone https://github.com/ad-freiburg/natural-entity-types.git
+    cd natural-entity-types
+    docker build -t natural_entity_types .
 
-Run
+Run the docker container:
 
-    python3 -m spacy download en_core_web_lg
+    docker run -it -p 8000:8000 -v $(pwd)/data/:/data -v $(pwd)/models/:/home/models -v $(pwd)/benchmarks/:/home/benchmarks natural-entity-types
 
-Finally, generate the necessary data files by running the following command:
+Make sure the mounted directories are writable from within the docker container, e.g. by running:
+
+    chmod a+rw -R data/ models/ benchmarks/
+
+Inside the docker container, get the data by running:
+
+    make download_all
+
+OR ALTERNATIVELY, if you want the most up-to-date data, generate it by running:
 
     make generate_all
 
@@ -26,12 +36,11 @@ This will download Wikidata mappings using the [QLever](https://qlever.cs.uni-fr
 databases from them for quick access, and compute type properties from these Wikidata mappings which are used as
 features by the models. This can take a couple of hours.
 
-OR download the precomputed mappings by running (faster, but the mappings will not be as up-to-date):
+You can now train and evaluate models, or used trained models to generate natural type triples for all entities in
+Wikidata as described in the next sections.
 
-    make download_all
 
-
-## Evaluation
+## Training and Evaluation
 
 To train and/or evaluate a model, adjust the following command according to your needs:
 
@@ -51,3 +60,11 @@ To train and/or evaluate a model, adjust the following command according to your
 Once you have evaluated a model for the first time (assuming you used the `--save_model` option), you can replace
 the `--save_model` option with the `--load_model` option to load the previously saved model from the specified file
 without having to train it again.
+
+## Generate Natural Type Triples
+
+To generate natural type triples for all entities that have an `instance of` or `subclass of` relation in Wikidata, run:
+
+    make triples
+
+This will generate a file `data/results/natural_types.ttl` that contains the natural type triples in TTL format.
