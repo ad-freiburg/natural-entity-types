@@ -181,6 +181,9 @@ class EntityDatabase:
                     new_types.update(self.subclass_of_mapping[t])
             type_set = new_types
             depth += 1
+            if depth > 1000:
+                logger.warning(f"Type {type_id} has a depth of more than 1000")
+                return -1
         return -1
 
     def get_instance_of_types(self, entity_id: str) -> Set[str]:
