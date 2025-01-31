@@ -8,7 +8,7 @@ from src.evaluation.benchmark_reader import BenchmarkReader
 from src.evaluation.metrics import MetricName
 from src.models.entity_database import EntityDatabase
 from src.type_computation.model_names import ModelNames
-from src.type_computation.neural_network import NeuralTypePredictor
+from src.type_computation.neural_network import NeuralTypePredictor, FeatureSet
 from src.evaluation.evaluation import evaluate
 
 
@@ -52,7 +52,7 @@ def main(args):
         predict_methods.append((gpt.predict, ModelNames.GPT.value))
     if ModelNames.NEURAL_NETWORK.value in args.models:
         logger.info("Initializing Neural Network ...")
-        nn = NeuralTypePredictor(entity_db)
+        nn = NeuralTypePredictor(entity_db, features=FeatureSet(args.feature_set))
         if args.load_model:
             nn.load_model(args.load_model)
         else:
@@ -113,6 +113,8 @@ if __name__ == "__main__":
                         help="Print details about each evaluated benchmark entity.")
     parser.add_argument("-pfile", "--prediction_file", type=str,
                         help="File containing the predictions to be evaluated, one line per entity with sorted type QIDs")
+    parser.add_argument("--feature_set", type=str, default="all", choices=[f.value for f in FeatureSet],
+                        help="Feature set to use for the neural model. Default is 'all'.")
 
     args = parser.parse_args()
     logger = log.setup_logger()

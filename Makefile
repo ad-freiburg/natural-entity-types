@@ -17,12 +17,16 @@ WIKIDATA_SPARQL_ENDPOINT = https://qlever.cs.uni-freiburg.de/api/wikidata
 # casting the query name to lowercase and appending .tsv
 DATA_QUERY_NAMES = QID_TO_DESCRIPTION QID_TO_LABEL QID_TO_SITELINKS QID_TO_P31 QID_TO_P279
 
+# If you want to use all features, including those that need to be precomputed, run: make triples FEATURES=all MODEL=models/nn.512_sig_d04_64_adam00001.70k.pt
+FEATURES = no_precomputed_features  # Alternatively: all
+MODEL = models/nn.no_precomp.512_sigmoid_d02_32_adam00001.70k.pt  # Alternatively: models/nn.512_sig_d04_64_adam00001.70k.pt
+
 triples:
 	@[ -d ${RESULTS_DIR} ] || mkdir ${RESULTS_DIR}
 	@if ls ${TRIPLES_FILE} 1> /dev/null 2>&1; then \
 	  echo -e "$${RED}Natural entity type triples file already exists at ${TRIPLES_FILE} . Delete (e.g. by running \"make delete_triples\") or rename it if you want to create a new triples file.$${RESET}"; echo; \
 	else \
-	  python3 scripts/create_natural_type_triples.py --load_model models/nn.512_sig_d04_64_adam00001.70k.pt -o ${TRIPLES_FILE} -m 12; \
+	  python3 scripts/create_natural_type_triples.py --load_model ${MODEL} -o ${TRIPLES_FILE} -m 12 --feature_set ${FEATURES}; \
 	fi
 
 delete_triples:

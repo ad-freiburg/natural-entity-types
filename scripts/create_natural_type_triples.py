@@ -4,6 +4,8 @@ import time
 import multiprocessing
 import json
 
+from src.type_computation.neural_network import FeatureSet
+
 sys.path.append(".")
 
 from src.utils import log
@@ -138,6 +140,8 @@ if __name__ == "__main__":
                         help="Number of entities to process.")
     parser.add_argument("-m", "--multiprocessing", type=int, default=8,
                         help="Number of processes to use for dataset creation.")
+    parser.add_argument("--feature_set", type=str, default="all", choices=[f.value for f in FeatureSet],
+                        help="Feature set to use for the neural model. Default is 'all'.")
 
     logger = log.setup_logger()
 
@@ -146,7 +150,7 @@ if __name__ == "__main__":
     # Write command line arguments to temporary config file which is then read by the forkserver_neural_network module.
     # This is not mega pretty, but I don't see a better solution where the user can still use command line arguments to
     # configure the neural network.
-    config = {"model_path": args.load_model}
+    config = {"model_path": args.load_model, "features": args.feature_set}
     with open(settings.TMP_FORKSERVER_CONFIG_FILE, "w", encoding="utf8") as config_file:
         json.dump(config, config_file)
 

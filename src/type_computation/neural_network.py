@@ -5,6 +5,7 @@ import random
 import math
 import logging
 from functools import lru_cache
+from enum import Enum
 
 from src.evaluation.benchmark_reader import BenchmarkReader
 from src.evaluation.evaluation import evaluate_batch_prediction
@@ -20,6 +21,9 @@ random.seed(246)
 
 logger = logging.getLogger("main." + __name__.split(".")[-1])
 
+class FeatureSet(Enum):
+    ALL = "all"
+    NO_PRECOMPUTED_FEATURES = "no_precomputed_features"
 
 def training_batches(x_train: torch.Tensor,
                      y_train: torch.Tensor,
@@ -40,7 +44,7 @@ def training_batches(x_train: torch.Tensor,
 
 
 class NeuralTypePredictor:
-    def __init__(self, entity_db=None):
+    def __init__(self, entity_db=None, features=FeatureSet.ALL):
         # Load entity database mappings if they have not been loaded already
         self.entity_db = entity_db if entity_db else EntityDatabase()
         self.entity_db.load_instance_of_mapping()
@@ -48,17 +52,21 @@ class NeuralTypePredictor:
         self.entity_db.load_entity_to_name()
         self.entity_db.load_entity_to_description()
 
-        self.feature_scores = FeatureScores(self.entity_db)
-        self.feature_scores.precompute_normalized_popularities()
-        self.feature_scores.precompute_normalized_idfs()
-        self.feature_scores.precompute_normalized_variances()
-
         logger.info("Loading spacy model...")
         self.nlp = spacy.load("en_core_web_lg")
         self.embedding_size = 300
-        self.n_features = 8 + self.embedding_size*2
+        if features == FeatureSet.NO_PRECOMPUTED_FEATURES:
+            self.n_features = 5 + self.embedding_size * 2
+        else:
+            self.feature_scores = FeatureScores(self.entity_db)
+            self.feature_scores.precompute_normalized_popularities()
+            self.feature_scores.precompute_normalized_idfs()
+            self.feature_scores.precompute_normalized_variances()
+            self.n_features = 8 + self.embedding_size*2
 
         self.model = None
+
+        self.features = features
 
         self.type_embedding_cache = {}
         self.desc_embedding_cache = {}
@@ -115,6 +123,7 @@ class NeuralTypePredictor:
 
         # Define the model as a sequential container
         self.model = torch.nn.Sequential(*layers)
+        self.model = self.model.to(self.device)
 
     @lru_cache(maxsize=1000000)
     def get_text_embedding(self, string):
@@ -129,16 +138,20 @@ class NeuralTypePredictor:
         return embedding
 
     def create_feature_vector(self, type_id, path_length, desc, desc_embedding, entity_name):
-        norm_pop = self.feature_scores.get_normalized_popularity(type_id)
-        norm_var = self.feature_scores.get_normalized_variance(type_id)
-        norm_idf = self.feature_scores.get_normalized_idf(type_id)
         type_name = self.entity_db.get_entity_name(type_id)
         type_name_embedding = self.get_text_embedding(type_name)
         type_in_desc = type_name.lower() in desc.lower() if type_name and desc else False
         len_type_name = len(type_name) if type_name else 0
         len_desc = len(desc) if desc else 0
         type_in_label = type_name.lower() in entity_name.lower() if type_name and entity_name else False
-        features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
+        features = []
+        if self.features == FeatureSet.ALL:
+            norm_pop = self.feature_scores.get_normalized_popularity(type_id)
+            norm_var = self.feature_scores.get_normalized_variance(type_id)
+            norm_idf = self.feature_scores.get_normalized_idf(type_id)
+            features = [norm_pop, norm_var, norm_idf, path_length, type_in_desc, len_type_name, len_desc, type_in_label]
+        elif self.features == FeatureSet.NO_PRECOMPUTED_FEATURES:
+            features = [path_length, type_in_desc, len_type_name, len_desc, type_in_label]
         return torch.cat((torch.Tensor(features).unsqueeze(0), desc_embedding, type_name_embedding), dim=1)
 
     def create_dataset(self, filename: str, cols_to_shuffle: Optional[Tuple[int, int]] = None, return_entity_index=False):
@@ -224,8 +237,7 @@ class NeuralTypePredictor:
         elif X_val is not None or y_val is not None or entity_index is not None:
             logger.warning(f"X_val, y_val and entity_index must be provided for validation.")
 
-        # Move the model and training data to the device (CPU or GPU)
-        self.model = self.model.to(self.device)
+        # Move training data to the device (CPU or GPU)
         x_train, y_train = x_train.to(self.device), y_train.to(self.device)
 
         self.model.train()
@@ -296,6 +308,7 @@ class NeuralTypePredictor:
         """
         Predict the types for a batch of entities.
         """
+        X = X.to(self.device)
         return self.model(X)
 
     def save_model(self, model_path):
@@ -311,4 +324,4 @@ class NeuralTypePredictor:
         """
         logger.info(f"Loading model from {model_path} ...")
         model_dict = torch.load(model_path)
-        self.model = model_dict['model']
+        self.model = model_dict['model'].to(self.device)

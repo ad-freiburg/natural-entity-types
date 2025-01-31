@@ -36,6 +36,15 @@ This will download Wikidata mappings using the [QLever](https://qlever.cs.uni-fr
 databases from them for quick access, and compute type properties from these Wikidata mappings which are used as
 features by the models. This can take a couple of hours.
 
+OR, if you only want to use the model that does not depend on precomputed features, you can run
+
+    make generate_wikidata_mappings
+
+This will only download the Wikidata mappings and generate the databases from them. The model that does not depend on
+precomputed features (`models/nn.no_precomp.512_sigmoid_d02_32_adam00001.70k.p`) can be used without the precomputed
+features and yields similar results (in our experiments, accuracy@1 is only 0.8 percentage points lower than with the
+full model).
+
 You can now train and evaluate models, or used trained models to generate natural type triples for all entities in
 Wikidata as described in the next sections.
 
@@ -68,3 +77,8 @@ To generate natural type triples for all entities that have an `instance of` or 
     make triples
 
 This will generate a file `data/results/natural_types.ttl` that contains the natural type triples in TTL format.
+You can adjust which model and feature set is used by changing the `MODEL` and `FEATURES` variables in the Makefile.
+Per default, the model `models/nn.no_precomp.512_sigmoid_d02_32_adam00001.70k.p` is used, which does not depend on
+precomputed features. If you want to use the full model run
+
+    make triples FEATURES=all MODEL=models/nn.512_sig_d04_64_adam00001.70k.pt

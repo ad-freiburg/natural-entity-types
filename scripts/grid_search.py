@@ -6,7 +6,7 @@ from itertools import product
 sys.path.append(".")
 
 from src.models.entity_database import EntityDatabase
-from src.type_computation.neural_network import NeuralTypePredictor
+from src.type_computation.neural_network import NeuralTypePredictor, FeatureSet
 from src.evaluation.benchmark_reader import BenchmarkReader
 from src.evaluation.metrics import MetricName
 from src.utils import log
@@ -30,7 +30,7 @@ def main(args):
     entity_db.load_subclass_of_mapping()
     entity_db.load_entity_to_name()
     entity_db.load_entity_to_description()
-    nn = NeuralTypePredictor(entity_db)
+    nn = NeuralTypePredictor(entity_db, features=FeatureSet(args.feature_set))
 
     parameters = {
         "optimizer": ["adam"],
@@ -111,6 +111,8 @@ if __name__ == "__main__":
                         help="File containing the validation dataset. Relevant for the neural network model only.")
     parser.add_argument("--save_model", type=str, required=True, help="File to which to save the model.")
     parser.add_argument("--output_file", type=str, help="File to which to write the parameters sorted by accuracy to.")
+    parser.add_argument("--feature_set", type=str, default="all", choices=[f.value for f in FeatureSet],
+                        help="Feature set to use for the neural model. Default is 'all'.")
 
     logger = log.setup_logger(stdout_level=logging.INFO)
 

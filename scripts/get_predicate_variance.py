@@ -180,7 +180,7 @@ class VarianceScoreComputer:
         Build entity and predicate indices (from ID to index and the other way
         around) from the predicate file.
         """
-        logger.info(f"Building predicate and entity indices for type {self.base_type}")
+        logger.debug(f"Building predicate and entity indices for type {self.base_type}")
         with open(self.predicate_file_name, "r", encoding="utf8") as file:
             for i, line in enumerate(file):
                 if i == 0:
@@ -192,10 +192,10 @@ class VarianceScoreComputer:
                 if predicate_id not in self.predicate_to_index:
                     self.predicate_index.append(predicate_id)
                     self.predicate_to_index[predicate_id] = len(self.predicate_index) - 1
-        logger.info(f"Predicate file contains {len(self.predicate_index)} distinct predicates")
+        logger.debug(f"Predicate file contains {len(self.predicate_index)} distinct predicates")
 
     def build_predicate_entity_matrix(self):
-        logger.info(f"Building predicate-entity matrix from predicate file ...")
+        logger.debug(f"Building predicate-entity matrix from predicate file ...")
         rows = []
         cols = []
         with open(self.predicate_file_name, "r", encoding="utf8") as file:
@@ -210,7 +210,7 @@ class VarianceScoreComputer:
         self.predicate_entity_matrix = csr_array(([1] * len(rows), (rows, cols)),
                                                  shape=(len(self.predicate_index), len(self.entity_index)),
                                                  dtype='uint8')
-        logger.info(f"Done. Predicate-entity matrix shape: {self.predicate_entity_matrix.shape}")
+        logger.debug(f"Done. Predicate-entity matrix shape: {self.predicate_entity_matrix.shape}")
 
     def compute_variance_for_type(self, type_id: str) -> float:
         col_indices = []
