@@ -323,5 +323,5 @@ class NeuralTypePredictor:
         Load the model and its settings from a dictionary.
         """
         logger.info(f"Loading model from {model_path} ...")
-        model_dict = torch.load(model_path)
+        model_dict = torch.load(model_path, weights_only=False)
         self.model = model_dict['model'].to(self.device)

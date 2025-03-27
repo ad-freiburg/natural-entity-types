@@ -1,11 +1,11 @@
-FROM ubuntu:20.04
+FROM ubuntu:24.04
 MAINTAINER Natalie Prange prange@cs.uni-freiburg.de
 WORKDIR /home/
 RUN apt-get update
 RUN apt-get install -y python3 python3-pip wget vim curl bc
 COPY requirements.txt requirements.txt
-RUN python3 -m pip install -r requirements.txt
-RUN python3 -m spacy download en_core_web_lg
+RUN python3 -m pip install -r requirements.txt --break-system-packages
+RUN python3 -m spacy download en_core_web_lg --break-system-packages
 COPY src src
 COPY scripts scripts
 COPY Makefile .
