@@ -80,6 +80,11 @@ def main(args):
         from src.type_computation.prediction_reader import PredictionReader
         prediction_reader = PredictionReader(args.prediction_file)
         predict_methods.append((prediction_reader.predict, ModelNames.PREDICTION_READER.value))
+    if ModelNames.DESCRIPTION_BASELINE.value in args.models:
+        logger.info("Initializing description baseline")
+        from src.type_computation.description_baseline import DescriptionBaseline
+        description_baseline = DescriptionBaseline(entity_db)
+        predict_methods.append((description_baseline.predict, ModelNames.DESCRIPTION_BASELINE.value))
 
 
     # Evaluate all models on all benchmarks
