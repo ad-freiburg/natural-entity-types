@@ -18,11 +18,11 @@ Get the code and build the docker image:
 
 Run the docker container:
 
-    docker run -it -v $(pwd)/data/:/home/data -v $(pwd)/models/:/home/models -v $(pwd)/benchmarks/:/home/benchmarks natural-entity-types
+    docker run -it -v $(pwd)/data/:/home/data -v $(pwd)/models/:/home/models -v $(pwd)/benchmarks/:/home/benchmarks -v $(pwd)/training_data/:/home/training_data natural-entity-types
 
 Make sure the mounted directories are writable from within the docker container, e.g. by running:
 
-    chmod a+rw -R data/ models/ benchmarks/
+    chmod a+rw -R data/ models/ benchmarks/ training_data/
 
 Inside the docker container, get the data by running:
 
@@ -78,7 +78,7 @@ To generate natural type triples for all entities that have an `instance of` or 
 
 This will generate a file `data/results/natural_types.ttl` that contains the natural type triples in TTL format.
 You can adjust which model and feature set is used by changing the `MODEL` and `FEATURES` variables in the Makefile.
-Per default, the model `models/nn.no_precomp.512_sigmoid_d02_32_adam00001.70k.p` is used, which does not depend on
+Per default, the model `models/nn.no_precomp.512_sigmoid_d02_32_adam00001.70k.pt` is used, which does not depend on
 precomputed features. If you want to use the full model run
 
     make triples FEATURES=all MODEL=models/nn.512_sig_d04_64_adam00001.70k.pt

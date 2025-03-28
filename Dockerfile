@@ -4,6 +4,7 @@ WORKDIR /home/
 RUN apt-get update
 RUN apt-get install -y python3 python3-pip wget vim curl bc
 COPY requirements.txt requirements.txt
+# --break-system-packages is used to avoid the need for a virtual environment within the docker container
 RUN python3 -m pip install -r requirements.txt --break-system-packages
 RUN python3 -m spacy download en_core_web_lg --break-system-packages
 COPY src src
@@ -21,4 +22,4 @@ CMD umask 000; /bin/bash;
 # docker build -t natural-entity-types .
 
 # Run the container:
-# docker run -it -v $(pwd)/data/:/home/data -v $(pwd)/models/:/home/models -v $(pwd)/benchmarks/:/home/benchmarks natural-entity-types
+# docker run -it -v $(pwd)/data/:/home/data -v $(pwd)/models/:/home/models -v $(pwd)/benchmarks/:/home/benchmarks -v $(pwd)/training_data/:/home/training_data natural-entity-types
