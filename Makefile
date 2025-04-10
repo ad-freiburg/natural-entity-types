@@ -6,9 +6,9 @@ RED := \033[31m
 RESET := \033[0m
 
 DATA_DIR = ./data/
-WIKIDATA_MAPPINGS_DIR = ${DATA_DIR}wikidata_mappings/
-TYPE_FEATURES_DIR = ${DATA_DIR}computed_mappings/
-PREDICATE_VARIANCES_DIR = ${DATA_DIR}predicate_variances/
+WIKIDATA_MAPPINGS_DIR = ${DATA_DIR}wikidata-mappings/
+TYPE_FEATURES_DIR = ${DATA_DIR}computed-mappings/
+PREDICATE_VARIANCES_DIR = ${DATA_DIR}predicate-variances/
 RESULTS_DIR = ${DATA_DIR}results/
 TRIPLES_FILE = ${RESULTS_DIR}natural_types.ttl
 
@@ -24,12 +24,12 @@ MODEL = models/nn.no_precomp.512_sigmoid_d02_32_adam00001.70k.pt  # Alternativel
 triples:
 	@[ -d ${RESULTS_DIR} ] || mkdir ${RESULTS_DIR}
 	@if ls ${TRIPLES_FILE} 1> /dev/null 2>&1; then \
-	  echo -e "$${RED}Natural entity type triples file already exists at ${TRIPLES_FILE} . Delete (e.g. by running \"make delete_triples\") or rename it if you want to create a new triples file.$${RESET}"; echo; \
+	  echo -e "$${RED}Natural entity type triples file already exists at ${TRIPLES_FILE} . Delete (e.g. by running \"make delete-triples\") or rename it if you want to create a new triples file.$${RESET}"; echo; \
 	else \
 	  python3 scripts/create_natural_type_triples.py --load_model ${MODEL} -o ${TRIPLES_FILE} -m 12 --feature_set ${FEATURES}; \
 	fi
 
-delete_triples:
+delete-triples:
 	@if ls ${TRIPLES_FILE} 1> /dev/null 2>&1; then \
 	  rm ${TRIPLES_FILE}; \
 	  echo -e "Deleted triples file at ${TRIPLES_FILE}"; \
@@ -37,33 +37,33 @@ delete_triples:
 	  echo -e "No triples file found at ${TRIPLES_FILE}"; \
 	fi
 
-download_all: download_wikidata_mappings download_type_features download_predicate_variances
+download-all: download-wikidata-mappings download-type-features download-predicate-variances
 
-download_wikidata_mappings:
+download-wikidata-mappings:
 	@[ -d ${WIKIDATA_MAPPINGS_DIR} ] || mkdir ${WIKIDATA_MAPPINGS_DIR}
 	wget https://ad-research.cs.uni-freiburg.de/data/natural-entity-types/wikidata_mappings.tar.gz
 	tar -xvzf wikidata_mappings.tar.gz -C ${WIKIDATA_MAPPINGS_DIR}
 	rm wikidata_mappings.tar.gz
 
-download_type_features:
+download-type-features:
 	@[ -d ${TYPE_FEATURES_DIR} ] || mkdir ${TYPE_FEATURES_DIR}
 	wget https://ad-research.cs.uni-freiburg.de/data/natural-entity-types/computed_type_features.tar.gz
 	tar -xvzf computed_type_features.tar.gz -C ${TYPE_FEATURES_DIR}
 	rm computed_type_features.tar.gz
 
-download_predicate_variances:
+download-predicate-variances:
 	@[ -d ${PREDICATE_VARIANCES_DIR} ] || mkdir ${PREDICATE_VARIANCES_DIR}
 	wget https://ad-research.cs.uni-freiburg.de/data/natural-entity-types/predicate_variances.tar.gz
 	tar -xvzf predicate_variances.tar.gz -C ${PREDICATE_VARIANCES_DIR}
 	rm predicate_variances.tar.gz
 
-generate_all: generate_wikidata_mappings compute_type_features compute_predicate_variances
+generate-all: generate-wikidata-mappings compute-type-features compute-predicate-variances
 
-generate_wikidata_mappings: get_qlever_mappings generate_databases
+generate-wikidata-mappings: get-qlever-mappings generate-databases
 
-get_qlever_mappings:
+get-qlever-mappings:
 	@echo
-	@echo "[get_wikidata_mappings] Get data for given queries in batches."
+	@echo "[get-qlever-mappings] Get data for given queries from QLever."
 	@echo
 	@echo "DATA_QUERY_NAMES = $(DATA_QUERY_NAMES)"
 	@[ -d ${WIKIDATA_MAPPINGS_DIR} ] || mkdir ${WIKIDATA_MAPPINGS_DIR}
@@ -73,9 +73,9 @@ get_qlever_mappings:
 	  $(MAKE) -sB API=$${WIKIDATA_SPARQL_ENDPOINT} QUERY_VARIABLE=$${QUERY_NAME}_QUERY OUTFILE=$${WIKIDATA_MAPPINGS_DIR}$${LOWER_QUERY_NAME}.tsv query; done
 	@echo
 
-generate_databases:
+generate-databases:
 	@echo
-	@echo "[generate_databases] Build databases from large Wikidata mappings."
+	@echo "[generate-databases] Build databases from large Wikidata mappings."
 	@echo
 	python3 scripts/create_databases.py ${WIKIDATA_MAPPINGS_DIR}qid_to_label.tsv
 	python3 scripts/create_databases.py ${WIKIDATA_MAPPINGS_DIR}qid_to_description.tsv
@@ -83,15 +83,15 @@ generate_databases:
 	python3 scripts/create_databases.py ${WIKIDATA_MAPPINGS_DIR}qid_to_p31.tsv -f multiple_values
 	python3 scripts/create_databases.py ${WIKIDATA_MAPPINGS_DIR}qid_to_p279.tsv -f multiple_values
 
-compute_type_features:
+compute-type-features:
 	@echo
-	@echo "[compute_type_features] Compute feature mappings from wikidata mappings."
+	@echo "[compute-type-features] Compute feature mappings from wikidata mappings."
 	@echo
 	python3 scripts/get_type_frequencies_and_popularities.py
 
-compute_predicate_variances:
+compute-predicate-variances:
 	@echo
-	@echo "[compute_predicate_variances] Compute predicate variances for various types"
+	@echo "[compute-predicate-variances] Compute predicate variances for various types"
 	@echo
 	python3 scripts/get_predicate_variance.py -qid all
 

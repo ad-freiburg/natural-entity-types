@@ -22,15 +22,15 @@ Run the docker container:
 
 Make sure the mounted directories are writable from within the docker container, e.g. by running:
 
-    chmod a+rw -R data/ models/ benchmarks/ training_data/
+    chmod a+rw -R data/ models/ benchmarks/ training-data/
 
 Inside the docker container, get the data by running:
 
-    make download_all
+    make download-all
 
 OR ALTERNATIVELY, if you want the most up-to-date data, generate it by running:
 
-    make generate_all
+    make generate-all
 
 This will download Wikidata mappings using the [QLever](https://qlever.cs.uni-freiburg.de/wikidata) API, generate
 databases from them for quick access, and compute type properties from these Wikidata mappings which are used as
@@ -38,7 +38,7 @@ features by the models. This can take a couple of hours.
 
 OR, if you only want to use the model that does not depend on precomputed features, you can run
 
-    make generate_wikidata_mappings
+    make generate-wikidata-mappings
 
 This will only download the Wikidata mappings and generate the databases from them. The model that does not depend on
 precomputed features (`models/nn.no_precomp.512_sigmoid_d02_32_adam00001.70k.p`) can be used without the precomputed
